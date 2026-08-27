@@ -34,6 +34,26 @@ body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
    tu bi ga prevladalo in pokvarilo vlečenje s prstom. */
 #map { height: 100%; }
 
+/* Namig, da zemljevid podpira poteze z dvema prstoma. Le informativen —
+   vedenja ne spreminja. Pod Leafletovima gumboma za povečavo, kjer se ne
+   zaleti s panelom radija na dnu. Prikažemo ga samo na napravah z dotikom. */
+.two-finger-hint {
+  display: none;
+  position: absolute;
+  top: 86px;
+  left: 14px;
+  color: var(--text);
+  opacity: 0.5;
+  pointer-events: none;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.8));
+  z-index: 800;
+}
+.two-finger-hint svg { width: 26px; height: 26px; display: block; }
+
+@media (pointer: coarse) {
+  .two-finger-hint { display: block; }
+}
+
 .btn-compass {
   display: flex;
   align-items: center;
