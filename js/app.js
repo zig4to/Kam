@@ -25,6 +25,7 @@
   var radiusValue = document.getElementById('radiusValue');
   var btnRadiusCancel = document.getElementById('btnRadiusCancel');
   var btnRadiusConfirm = document.getElementById('btnRadiusConfirm');
+  var radiusPresets = document.getElementById('radiusPresets');
   var savedGrid = document.getElementById('savedGrid');
   var savedEmpty = document.getElementById('savedEmpty');
 
@@ -33,6 +34,7 @@
   var resultMarker = null;
   var pendingStart = null;
   var toastTimer = null;
+  var radiusStepToken = 0;
 
   // ---------------------------------------------------------------- ikone
   function pinIcon(color) {
@@ -130,18 +132,83 @@
     }).addTo(map);
 
     radiusValue.textContent = formatRadius(radius);
+    syncPresetActive(radius);
     radiusPanel.hidden = false;
     map.flyTo(latlng, Math.max(map.getZoom(), 11));
     map.once('moveend', function () { map.fitBounds(previewCircle.getBounds(), { padding: [40, 40] }); });
+  }
+
+  // prednastavljene vrednosti radija (km)
+  var RADIUS_PRESETS = [5, 10, 20, 30, 40, 50, 80, 100];
+  var presetButtons = RADIUS_PRESETS.map(function (km) {
+    var btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'radius-preset-btn';
+    btn.textContent = km + ' km';
+    btn.dataset.meters = km * 1000;
+    btn.addEventListener('click', function () { setRadius(km * 1000); });
+    radiusPresets.appendChild(btn);
+    return btn;
+  });
+
+  function syncPresetActive(meters) {
+    presetButtons.forEach(function (btn) {
+      btn.classList.toggle('active', Number(btn.dataset.meters) === meters);
+    });
+  }
+
+  function setRadius(meters) {
+    radiusSlider.value = meters;
+    radiusValue.textContent = formatRadius(meters);
+    if (previewCircle) previewCircle.setRadius(meters);
+    syncPresetActive(meters);
   }
 
   radiusSlider.addEventListener('input', function () {
     var radius = parseInt(radiusSlider.value, 10);
     radiusValue.textContent = formatRadius(radius);
     if (previewCircle) previewCircle.setRadius(radius);
+    syncPresetActive(radius);
   });
 
+  // način izbire cilja: naključna točka ali označena točka na zemljevidu
+  function pickMode() {
+    var checked = document.querySelector('input[name="pickMode"]:checked');
+    return checked ? checked.value : 'random';
+  }
+
+  /* Poizvede resnične označene točke (vrhovi, jezera, kraji, znamenitosti) iz
+     OpenStreetMap prek javnega Overpass API-ja — Bergfex ploščice so le slike
+     brez poizvedljivih podatkov, zato za to potrebujemo ločen vir. */
+  function queryMarkedPoint(lat, lng, radiusMeters) {
+    var query = '[out:json][timeout:20];(' +
+      'nwr["natural"="peak"](around:' + radiusMeters + ',' + lat + ',' + lng + ');' +
+      'nwr["natural"="water"](around:' + radiusMeters + ',' + lat + ',' + lng + ');' +
+      'nwr["place"~"^(city|town|village|hamlet)$"](around:' + radiusMeters + ',' + lat + ',' + lng + ');' +
+      'nwr["tourism"~"^(attraction|viewpoint|museum|artwork)$"](around:' + radiusMeters + ',' + lat + ',' + lng + ');' +
+      ');out center tags;';
+
+    return fetch('https://overpass-api.de/api/interpreter', {
+      method: 'POST',
+      body: 'data=' + encodeURIComponent(query)
+    }).then(function (res) {
+      if (!res.ok) throw new Error('overpass ' + res.status);
+      return res.json();
+    }).then(function (data) {
+      var elements = (data.elements || []).filter(function (el) {
+        return (el.type === 'node' && el.lat != null) || (el.center && el.center.lat != null);
+      });
+      if (!elements.length) return null;
+      var pick = elements[Math.floor(Math.random() * elements.length)];
+      var plat = pick.type === 'node' ? pick.lat : pick.center.lat;
+      var plng = pick.type === 'node' ? pick.lon : pick.center.lon;
+      var name = pick.tags && pick.tags.name ? pick.tags.name : null;
+      return { lat: plat, lng: plng, name: name };
+    }).catch(function () { return null; });
+  }
+
   function endRadiusStep() {
+    radiusStepToken++;
     radiusPanel.hidden = true;
     if (previewCircle) { map.removeLayer(previewCircle); previewCircle = null; }
     if (startMarker) { map.removeLayer(startMarker); startMarker = null; }
@@ -150,16 +217,41 @@
 
   btnRadiusCancel.addEventListener('click', endRadiusStep);
 
-  btnRadiusConfirm.addEventListener('click', function () {
-    if (!pendingStart) return;
-    var radius = parseInt(radiusSlider.value, 10);
-    var point = randomPointInCircle(pendingStart[0], pendingStart[1], radius);
-    endRadiusStep();
-
+  function showResult(point, name) {
     if (resultMarker) map.removeLayer(resultMarker);
     resultMarker = L.marker(point, { icon: resultIcon }).addTo(map);
     map.flyTo(point, 14);
     openResultPopup(point[0], point[1]);
+    if (name) showToast('Izbrano: ' + name, 3000);
+  }
+
+  btnRadiusConfirm.addEventListener('click', function () {
+    if (!pendingStart) return;
+    var radius = parseInt(radiusSlider.value, 10);
+    var start = pendingStart;
+
+    if (pickMode() === 'marked') {
+      var token = radiusStepToken;
+      btnRadiusConfirm.disabled = true;
+      btnRadiusConfirm.textContent = 'Iščem …';
+      queryMarkedPoint(start[0], start[1], radius).then(function (found) {
+        btnRadiusConfirm.disabled = false;
+        btnRadiusConfirm.textContent = 'Potrdi';
+        if (token !== radiusStepToken) return; // preklicano medtem
+        endRadiusStep();
+        if (found) {
+          showResult([found.lat, found.lng], found.name);
+        } else {
+          showToast('Ni najdenih označenih točk, izbrana naključna.', 3000);
+          showResult(randomPointInCircle(start[0], start[1], radius));
+        }
+      });
+      return;
+    }
+
+    var point = randomPointInCircle(start[0], start[1], radius);
+    endRadiusStep();
+    showResult(point);
   });
 
   // ------------------------------------------------- shranjene točke: podatki

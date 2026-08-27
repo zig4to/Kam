@@ -65,7 +65,31 @@
     <strong>Radij okoli izhodišča</strong>
     <span id="radiusValue">5 km</span>
   </div>
-  <input id="radiusSlider" type="range" min="200" max="50000" step="100" value="5000">
+  <input id="radiusSlider" type="range" min="200" max="100000" step="100" value="5000">
+
+  <div id="radiusPresets" class="radius-presets"></div>
+
+  <div id="pickModeGroup" class="pick-mode-group">
+    <label class="pick-mode-row">
+      <input type="radio" name="pickMode" id="pickModeRandom" value="random" checked>
+      <span class="pick-mode-check" aria-hidden="true"></span>
+      <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+        <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.6"/>
+        <path d="M12 7v5l3.5 2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      <span>Vrzi naključno</span>
+    </label>
+    <label class="pick-mode-row">
+      <input type="radio" name="pickMode" id="pickModeMarked" value="marked">
+      <span class="pick-mode-check" aria-hidden="true"></span>
+      <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+        <path d="M12 21s7-6.5 7-11.5A7 7 0 1 0 5 9.5C5 14.5 12 21 12 21Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
+        <path d="M9.5 9.5l2 2 3.5-3.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      <span>Izberi označeno točko</span>
+    </label>
+  </div>
+
   <div class="radius-actions">
     <button id="btnRadiusCancel" class="btn-secondary" type="button">Prekliči</button>
     <button id="btnRadiusConfirm" class="btn-primary" type="button">Potrdi</button>
