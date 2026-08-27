@@ -78,9 +78,19 @@ body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
 .btn-saved:active { transform: scale(0.96); }
 .btn-saved svg { width: 17px; height: 17px; flex-shrink: 0; }
 
-@media (max-width: 520px) {
-  .btn-saved { padding: 9px 12px; }
+/* Na telefonu samo ikona — okrogel gumb, brez napisa, da se ne zaleti s
+   kompasom na sredini. Poleg širine upoštevamo še dotik, saj so nekatere
+   naprave širše od praga, a jih vseeno uporabljamo s prstom. */
+@media (max-width: 560px), (pointer: coarse) {
+  .btn-saved {
+    padding: 0;
+    width: 40px;
+    height: 40px;
+    justify-content: center;
+    gap: 0;
+  }
   .btn-saved span { display: none; }
+  .btn-saved svg { width: 19px; height: 19px; }
 }
 
 .overlay {
