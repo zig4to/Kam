@@ -177,31 +177,44 @@
     return checked ? checked.value : 'random';
   }
 
+  var OVERPASS_URL = 'https://overpass-api.de/api/interpreter';
+
   function sleep(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
 
-  /* Ena poizvedba na Overpass; zavrne se, če je odgovor napačen ali ni ok. */
+  /* Ena poizvedba na Overpass. Odjemalčev rok (35 s) je namenoma nad
+     strežnikovim ([timeout:25] + režijski stroški), da ne prekinemo zahteve,
+     ki bi čez trenutek uspela — deluje le kot varovalka proti pravemu obvisu. */
   function overpassRequest(query) {
-    return fetch('https://overpass-api.de/api/interpreter', {
+    var controller = new AbortController();
+    var timer = setTimeout(function () { controller.abort(); }, 35000);
+    return fetch(OVERPASS_URL, {
       method: 'POST',
-      body: 'data=' + encodeURIComponent(query)
+      body: 'data=' + encodeURIComponent(query),
+      signal: controller.signal
     }).then(function (res) {
+      clearTimeout(timer);
       if (!res.ok) { var err = new Error('overpass ' + res.status); err.status = res.status; throw err; }
       return res.json();
-    });
+    }, function (err) { clearTimeout(timer); throw err; });
   }
 
-  /* Poizvede resnične OZNAČENE točke (vrhovi, vode, kraji, znamenitosti — torej
-     take, ki imajo ime in bi bile na zemljevidu vidne kot napis) iz OpenStreetMap
-     prek javnega Overpass API-ja — Bergfex ploščice so le slike brez poizvedljivih
-     podatkov, zato za to potrebujemo ločen vir. Javni strežnik dovoli le 2 sočasni
-     zahtevi na IP, zato ob 429 enkrat počakamo in poskusimo znova. */
+  /* Poizvede resnične OZNAČENE točke (vrhovi, vode, večja naselja, znamenitosti
+     — torej take, ki imajo ime in bi bile na zemljevidu vidne kot napis) iz
+     OpenStreetMap prek javnega Overpass API-ja — Bergfex ploščice so le slike
+     brez poizvedljivih podatkov, zato za to potrebujemo ločen vir. Zaselki
+     (place=hamlet) so namenoma izpuščeni: v gosto poseljenih območjih jih je
+     na tisoče, kar poizvedbo pri velikih radijih upočasni brez prida, saj kot
+     cilj vseeno niso posebej zanimivi. Izpis je omejen na 250 zadetkov, da
+     prenos in razčlenjevanje na telefonu ne trajata predolgo. Javni strežnik
+     dovoli le 2 sočasni zahtevi na IP, zato ob 429 enkrat počakamo in
+     poskusimo znova. */
   function queryMarkedPoint(lat, lng, radiusMeters) {
-    var query = '[out:json][timeout:20];(' +
+    var query = '[out:json][timeout:25];(' +
       'nwr["natural"="peak"]["name"](around:' + radiusMeters + ',' + lat + ',' + lng + ');' +
       'nwr["natural"="water"]["name"](around:' + radiusMeters + ',' + lat + ',' + lng + ');' +
-      'nwr["place"~"^(city|town|village|hamlet)$"]["name"](around:' + radiusMeters + ',' + lat + ',' + lng + ');' +
+      'nwr["place"~"^(city|town|village)$"]["name"](around:' + radiusMeters + ',' + lat + ',' + lng + ');' +
       'nwr["tourism"~"^(attraction|viewpoint|museum|artwork)$"]["name"](around:' + radiusMeters + ',' + lat + ',' + lng + ');' +
-      ');out center tags;';
+      ');out center tags 250;';
 
     return overpassRequest(query).catch(function (err) {
       if (err.status === 429) return sleep(2500).then(function () { return overpassRequest(query); });
@@ -244,7 +257,7 @@
     if (pickMode() === 'marked') {
       var token = radiusStepToken;
       btnRadiusConfirm.disabled = true;
-      btnRadiusConfirm.textContent = 'Iščem …';
+      btnRadiusConfirm.textContent = radius > 20000 ? 'Iščem (lahko traja do 30 s) …' : 'Iščem …';
       queryMarkedPoint(start[0], start[1], radius).then(function (found) {
         btnRadiusConfirm.disabled = false;
         btnRadiusConfirm.textContent = 'Potrdi';
