@@ -30,28 +30,9 @@ body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
 }
 #topbar > * { pointer-events: auto; }
 
-/* pan-y pusti navpično drsenje strani brskalniku (en prst), večprstne poteze
-   pa še vedno pridejo do Leafleta */
-#map { height: 100%; touch-action: pan-y; }
-
-.gesture-hint {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  background: rgba(8, 10, 14, 0.82);
-  color: var(--text);
-  padding: 12px 22px;
-  border-radius: 999px;
-  font-size: 14px;
-  font-weight: 500;
-  text-align: center;
-  pointer-events: none;
-  opacity: 0;
-  transition: opacity 0.18s ease;
-  z-index: 900;
-}
-.gesture-hint.show { opacity: 1; }
+/* Brez touch-action: Leaflet ga nastavi sam (.leaflet-touch-drag), ID pravilo
+   tu bi ga prevladalo in pokvarilo vlečenje s prstom. */
+#map { height: 100%; }
 
 .btn-compass {
   display: flex;
