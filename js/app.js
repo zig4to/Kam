@@ -69,6 +69,7 @@
   var eleFilter = document.getElementById('eleFilter');
   var eleMinInput = document.getElementById('eleMin');
   var eleMaxInput = document.getElementById('eleMax');
+  var popularToggle = document.getElementById('popularToggle');
 
   var startMarker = null;
   var previewCircle = null;
@@ -360,8 +361,11 @@
      zemljevid. Javni strežnik dovoli le 2 sočasni zahtevi na IP, zato ob 429
      enkrat počakamo in poskusimo znova. eleMin/eleMax (lahko null) dodatno
      omejita izbor na vrhove z znano nadmorsko višino (oznaka `ele`) znotraj
-     tega razpona. */
-  function queryMarkedPoint(areaFilter, eleMin, eleMax) {
+     tega razpona. popularOnly obdrži le vrhove, ki imajo `wikipedia` ali
+     `wikidata` oznako — v OSM praksi jih dobijo predvsem prepoznavni,
+     znani vrhovi, zato je to razumen posreden približek "priljubljenosti"
+     (OSM nima dejanske statistike obiskov). */
+  function queryMarkedPoint(areaFilter, eleMin, eleMax, popularOnly) {
     var query = '[out:json][timeout:25];' +
       'node["natural"="peak"]["name"](' + areaFilter + ');' +
       'out body 1000;';
@@ -372,6 +376,7 @@
     }).then(function (data) {
       var elements = (data.elements || []).filter(function (el) {
         if (!el.tags || !el.tags.name || el.lat == null) return false;
+        if (popularOnly && !el.tags.wikipedia && !el.tags.wikidata) return false;
         /* Brez znane višine vrha ne moremo preveriti, ali ustreza filtru,
            zato ga pri aktivnem filtru izločimo. */
         if (eleMin != null || eleMax != null) {
@@ -758,22 +763,49 @@
       showResult([found.lat, found.lng], found.name);
       return;
     }
+    /* Vrha ni v (filtrirani) bazi — namesto naključne točke se vrni na obrazec
+       za izbiro, da lahko uporabnik prilagodi vrednosti (območje, filtre) in
+       poskusi znova. */
+    if (found && found.status === 'empty') {
+      var filtered = spec.eleMin != null || spec.eleMax != null || spec.popularOnly;
+      reopenPanelFromLastThrow();
+      showToast(
+        (filtered ? 'Noben vrh ne ustreza filtru.' : 'Ni vrhov v tem območju.') + ' Prilagodi vrednosti in poskusi znova.',
+        3500
+      );
+      return;
+    }
+    /* Dejanska napaka iskanja (status 'error' — omrežje/API): ne vržemo
+       naključne točke, stanje ostane nespremenjeno — namesto potrditvenega
+       okna se pod pinom na sredini območja odpre isto vrsto okna kot pri
+       zadetku, le da namesto rezultata ponudi ponovitev. */
+    if (found) {
+      showErrorResult(spec);
+      return;
+    }
+    // found === null → čist naključni met (mode "Vrzi naključno")
     var fallback = spec.pickRandom();
     if (!fallback) {
       showToast('Območje je preozko — nariši ga malo širše.', 3500);
       return;
     }
-    if (found && found.status === 'empty') {
-      showToast(
-        (spec.eleMin != null || spec.eleMax != null)
-          ? 'Ni vrhov v tej višini znotraj območja, izbrana naključna točka.'
-          : 'Ni vrhov v tem območju, izbrana naključna točka.',
-        3500
-      );
-    } else if (found) {
-      showToast('Iskanje vrhov ni uspelo, izbrana naključna točka.', 3500);
-    }
     showResult(fallback);
+  }
+
+  /* Sredinska točka območja — samo za postavitev pina pri showErrorResult
+     (krog ima že svoje izhodišče, poligon ga nima, zato center oboda). */
+  function areaCenterPoint(spec) {
+    if (!spec.useDrawn) return spec.start;
+    var c = L.latLngBounds(spec.poly).getCenter();
+    return [c.lat, c.lng];
+  }
+
+  function showErrorResult(spec) {
+    var point = areaCenterPoint(spec);
+    if (resultMarker) map.removeLayer(resultMarker);
+    resultMarker = L.marker(point, { icon: resultIcon }).addTo(map);
+    map.flyTo(point, Math.max(map.getZoom(), 11));
+    resultMarker.bindPopup(buildErrorPopup(spec), { offset: [0, -28] }).openPopup();
   }
 
   btnRadiusConfirm.addEventListener('click', function () {
@@ -822,6 +854,7 @@
       }
       spec.eleMin = ele.min;
       spec.eleMax = ele.max;
+      spec.popularOnly = popularToggle.checked;
     }
     lastThrow = spec;
 
@@ -829,7 +862,7 @@
       var token = radiusStepToken;
       btnRadiusConfirm.disabled = true;
       btnRadiusConfirm.textContent = spec.slow ? 'Iščem (lahko traja do 30 s) …' : 'Iščem …';
-      queryMarkedPoint(spec.areaFilter, spec.eleMin, spec.eleMax).then(function (found) {
+      queryMarkedPoint(spec.areaFilter, spec.eleMin, spec.eleMax, spec.popularOnly).then(function (found) {
         btnRadiusConfirm.disabled = false;
         btnRadiusConfirm.textContent = 'Potrdi';
         if (token !== radiusStepToken) return; // preklicano medtem
@@ -1065,7 +1098,7 @@
         if (spec.mode !== 'marked') { resolveThrow(spec, null); return; }
         repeatBtn.disabled = true;
         repeatBtn.setLabel('Iščem …');
-        queryMarkedPoint(spec.areaFilter, spec.eleMin, spec.eleMax).then(function (found) {
+        queryMarkedPoint(spec.areaFilter, spec.eleMin, spec.eleMax, spec.popularOnly).then(function (found) {
           repeatBtn.disabled = false;
           repeatBtn.setLabel('Vrzi ponovno');
           resolveThrow(spec, found);
@@ -1098,6 +1131,36 @@
 
   function openResultPopup(lat, lng, name, allowRepeat) {
     resultMarker.bindPopup(buildResultPopup(lat, lng, name, allowRepeat), { offset: [0, -28] }).openPopup();
+  }
+
+  /* Okno ob napaki iskanja (glej showErrorResult) — enak vzorec gumbov kot pri
+     zadetku (Spremeni vrednosti / ponovitev), le brez koordinat in Shrani. */
+  function buildErrorPopup(spec) {
+    var wrap = document.createElement('div');
+    wrap.className = 'result-popup';
+
+    var title = document.createElement('div');
+    title.className = 'popup-title';
+    title.textContent = 'Iskanje vrhov ni uspelo';
+    wrap.appendChild(title);
+
+    var editBtn = iconButton('popup-edit-btn', 'Spremeni vrednosti', ICON_TUNE);
+    editBtn.addEventListener('click', reopenPanelFromLastThrow);
+    wrap.appendChild(editBtn);
+
+    var retryBtn = iconButton('popup-repeat-btn', 'Poskusi znova', ICON_REPEAT);
+    retryBtn.addEventListener('click', function () {
+      retryBtn.disabled = true;
+      retryBtn.setLabel('Iščem …');
+      queryMarkedPoint(spec.areaFilter, spec.eleMin, spec.eleMax, spec.popularOnly).then(function (found) {
+        retryBtn.disabled = false;
+        retryBtn.setLabel('Poskusi znova');
+        resolveThrow(spec, found);
+      });
+    });
+    wrap.appendChild(retryBtn);
+
+    return wrap;
   }
 
   // ------------------------------------------------- shranjene točke: seznam
