@@ -298,19 +298,33 @@ body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
 }
 .popup-coords:active { background: rgba(255, 255, 255, 0.15); }
 .popup-copied { font-size: 11px; color: var(--accent-blue); height: 14px; margin-top: 4px; }
-.popup-save-btn {
+.popup-repeat-btn, .popup-save-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
   margin-top: 8px;
   width: 100%;
   border: none;
   border-radius: 10px;
   padding: 8px;
-  background: linear-gradient(135deg, var(--accent-blue), var(--accent-teal));
-  color: #fff;
   font-weight: 600;
   font-size: 13px;
   cursor: pointer;
 }
-.popup-save-btn:disabled { opacity: 0.7; cursor: default; }
+.popup-repeat-btn svg, .popup-save-btn svg { width: 16px; height: 16px; flex-shrink: 0; }
+
+.popup-repeat-btn {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--text);
+}
+.popup-repeat-btn:hover { background: rgba(255, 255, 255, 0.16); }
+
+.popup-save-btn {
+  background: linear-gradient(135deg, var(--accent-blue), var(--accent-teal));
+  color: #fff;
+}
+.popup-repeat-btn:disabled, .popup-save-btn:disabled { opacity: 0.7; cursor: default; }
 
 /* --------------------------------------------------------- shranjene točke */
 #savedSection { padding: 22px 16px 40px; }

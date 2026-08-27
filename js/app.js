@@ -415,8 +415,32 @@
     if (resultMarker) map.removeLayer(resultMarker);
     resultMarker = L.marker(point, { icon: resultIcon }).addTo(map);
     map.flyTo(point, 14);
-    openResultPopup(point[0], point[1], name);
+    openResultPopup(point[0], point[1], name, true);
     if (name) showToast('Izbrano: ' + name, 3000);
+  }
+
+  /* Zadnji met — shranjeni parametri, da ga lahko z gumbom v oknu ponovimo
+     pod povsem enakimi pogoji (isto območje, isti način izbire). */
+  var lastThrow = null;
+
+  /* Iz (morebitnega) odgovora Overpassa in žrebalnika sestavi končni rezultat.
+     `found` je null pri čistem naključnem metu. */
+  function resolveThrow(spec, found) {
+    if (found && found.status === 'ok') {
+      showResult([found.lat, found.lng], found.name);
+      return;
+    }
+    var fallback = spec.pickRandom();
+    if (!fallback) {
+      showToast('Območje je preozko — nariši ga malo širše.', 3500);
+      return;
+    }
+    if (found && found.status === 'empty') {
+      showToast('Ni vrhov v tem območju, izbrana naključna točka.', 3500);
+    } else if (found) {
+      showToast('Iskanje vrhov ni uspelo, izbrana naključna točka.', 3500);
+    }
+    showResult(fallback);
   }
 
   btnRadiusConfirm.addEventListener('click', function () {
@@ -430,52 +454,43 @@
 
     /* Območje iskanja opišemo enkrat — kot filter za Overpass in kot žrebalnik
        naključne točke — da je nadaljnji potek enak za krog in narisan poligon. */
-    var areaFilter, pickRandom, slow;
+    var spec;
     if (useDrawn) {
       var poly = drawPoints.slice();
-      areaFilter = polyFilter(poly);
-      pickRandom = function () { return randomPointInPolygon(poly); };
-      slow = true;
+      spec = {
+        mode: pickMode(),
+        areaFilter: polyFilter(poly),
+        pickRandom: function () { return randomPointInPolygon(poly); },
+        slow: true
+      };
     } else {
       var radius = parseInt(radiusSlider.value, 10);
       var start = pendingStart;
-      areaFilter = 'around:' + radius + ',' + start[0] + ',' + start[1];
-      pickRandom = function () { return randomPointInCircle(start[0], start[1], radius); };
-      slow = radius > 20000;
+      spec = {
+        mode: pickMode(),
+        areaFilter: 'around:' + radius + ',' + start[0] + ',' + start[1],
+        pickRandom: function () { return randomPointInCircle(start[0], start[1], radius); },
+        slow: radius > 20000
+      };
     }
+    lastThrow = spec;
 
-    if (pickMode() === 'marked') {
+    if (spec.mode === 'marked') {
       var token = radiusStepToken;
       btnRadiusConfirm.disabled = true;
-      btnRadiusConfirm.textContent = slow ? 'Iščem (lahko traja do 30 s) …' : 'Iščem …';
-      queryMarkedPoint(areaFilter).then(function (found) {
+      btnRadiusConfirm.textContent = spec.slow ? 'Iščem (lahko traja do 30 s) …' : 'Iščem …';
+      queryMarkedPoint(spec.areaFilter).then(function (found) {
         btnRadiusConfirm.disabled = false;
         btnRadiusConfirm.textContent = 'Potrdi';
         if (token !== radiusStepToken) return; // preklicano medtem
-        var fallback = pickRandom();
         endRadiusStep();
-        if (found.status === 'ok') {
-          showResult([found.lat, found.lng], found.name);
-        } else if (!fallback) {
-          showToast('V tem območju ni bilo mogoče izbrati točke.', 3500);
-        } else if (found.status === 'empty') {
-          showToast('Ni vrhov v tem območju, izbrana naključna točka.', 3500);
-          showResult(fallback);
-        } else {
-          showToast('Iskanje vrhov ni uspelo, izbrana naključna točka.', 3500);
-          showResult(fallback);
-        }
+        resolveThrow(spec, found);
       });
       return;
     }
 
-    var point = pickRandom();
     endRadiusStep();
-    if (!point) {
-      showToast('Območje je preozko — nariši ga malo širše.', 3500);
-      return;
-    }
-    showResult(point);
+    resolveThrow(spec, null);
   });
 
   // ------------------------------------------------- shranjene točke: podatki
@@ -605,7 +620,29 @@
   }
 
   // -------------------------------------------------- rezultat: popup okno
-  function buildResultPopup(lat, lng, knownName) {
+  /* Gumb z ikono: SVG postavimo pred besedilo, ki ga po potrebi menjamo. */
+  function iconButton(className, label, svgPaths) {
+    var btn = document.createElement('button');
+    btn.className = className;
+    btn.type = 'button';
+    var svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    svg.setAttribute('viewBox', '0 0 24 24');
+    svg.setAttribute('fill', 'none');
+    svg.setAttribute('aria-hidden', 'true');
+    svg.innerHTML = svgPaths;
+    var span = document.createElement('span');
+    span.textContent = label;
+    btn.appendChild(svg);
+    btn.appendChild(span);
+    btn.setLabel = function (text) { span.textContent = text; };
+    return btn;
+  }
+
+  var ICON_REPEAT = '<path d="M20 11a8 8 0 1 0-.6 4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>' +
+    '<path d="M20 4v6h-6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>';
+  var ICON_SAVE = '<path d="M6.5 3.5h11a1 1 0 0 1 1 1v16l-6.5-4-6.5 4v-16a1 1 0 0 1 1-1Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>';
+
+  function buildResultPopup(lat, lng, knownName, allowRepeat) {
     var text = lat.toFixed(5) + ', ' + lng.toFixed(5);
     var wrap = document.createElement('div');
     wrap.className = 'result-popup';
@@ -636,13 +673,29 @@
       });
     });
 
-    var saveBtn = document.createElement('button');
-    saveBtn.className = 'popup-save-btn';
-    saveBtn.type = 'button';
-    saveBtn.textContent = 'Shrani';
+    /* Ponovi zadnji met z istimi parametri. Rezultat zamenja označevalec in s
+       tem to okno, zato gumba ni treba posebej vračati v izhodiščno stanje —
+       razen kadar met ne da točke in okno ostane odprto. */
+    if (allowRepeat && lastThrow) {
+      var repeatBtn = iconButton('popup-repeat-btn', 'Vrzi ponovno', ICON_REPEAT);
+      repeatBtn.addEventListener('click', function () {
+        var spec = lastThrow;
+        if (spec.mode !== 'marked') { resolveThrow(spec, null); return; }
+        repeatBtn.disabled = true;
+        repeatBtn.setLabel('Iščem …');
+        queryMarkedPoint(spec.areaFilter).then(function (found) {
+          repeatBtn.disabled = false;
+          repeatBtn.setLabel('Vrzi ponovno');
+          resolveThrow(spec, found);
+        });
+      });
+      wrap.appendChild(repeatBtn);
+    }
+
+    var saveBtn = iconButton('popup-save-btn', 'Shrani', ICON_SAVE);
     saveBtn.addEventListener('click', function () {
       saveBtn.disabled = true;
-      saveBtn.textContent = 'Shranjujem …';
+      saveBtn.setLabel('Shranjujem …');
       /* Pri izbranem vrhu ime že imamo; pri naključni točki poiščemo najbližji
          vrh ali kraj. Če opis ne uspe, točko vseeno shranimo — le brez opisa. */
       var namePromise = knownName ? Promise.resolve(knownName) : describePoint(lat, lng);
@@ -652,8 +705,8 @@
         var ok = persistSaved(list);
         renderSavedGrid();
         saveBtn.disabled = false;
-        saveBtn.textContent = ok ? 'Shranjeno ✓' : 'Napaka pri shranjevanju';
-        setTimeout(function () { saveBtn.textContent = 'Shrani'; }, 1500);
+        saveBtn.setLabel(ok ? 'Shranjeno ✓' : 'Napaka pri shranjevanju');
+        setTimeout(function () { saveBtn.setLabel('Shrani'); }, 1500);
       });
     });
     wrap.appendChild(saveBtn);
@@ -661,8 +714,8 @@
     return wrap;
   }
 
-  function openResultPopup(lat, lng, name) {
-    resultMarker.bindPopup(buildResultPopup(lat, lng, name), { offset: [0, -28] }).openPopup();
+  function openResultPopup(lat, lng, name, allowRepeat) {
+    resultMarker.bindPopup(buildResultPopup(lat, lng, name, allowRepeat), { offset: [0, -28] }).openPopup();
   }
 
   // ------------------------------------------------- shranjene točke: seznam
