@@ -8,10 +8,10 @@
   --text-dim: #9aa4b2;
 }
 
-html, body { margin: 0; padding: 0; height: 100%; background: var(--bg-dark); }
+html, body { margin: 0; padding: 0; background: var(--bg-dark); }
 body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
 
-#app { display: flex; flex-direction: column; height: 100%; }
+#app { display: flex; flex-direction: column; height: 100vh; height: 100dvh; }
 
 #topbar {
   flex: 0 0 auto;
@@ -143,3 +143,68 @@ body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
 }
 .btn-secondary { background: rgba(255, 255, 255, 0.08); color: var(--text); }
 .btn-primary { background: linear-gradient(135deg, var(--accent-blue), var(--accent-teal)); color: #fff; }
+
+/* ---------------------------------------------------------- rezultat: popup */
+.leaflet-popup-content-wrapper {
+  background: rgba(27, 32, 41, 0.88);
+  color: var(--text);
+  border-radius: 14px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
+}
+.leaflet-popup-tip { background: rgba(27, 32, 41, 0.88); }
+.leaflet-popup-content { margin: 12px 14px; }
+.leaflet-popup-close-button { color: var(--text) !important; }
+
+.result-popup { min-width: 150px; text-align: center; }
+.popup-coords {
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 6px 8px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.06);
+  user-select: all;
+}
+.popup-coords:active { background: rgba(255, 255, 255, 0.15); }
+.popup-copied { font-size: 11px; color: var(--accent-blue); height: 14px; margin-top: 4px; }
+.popup-save-btn {
+  margin-top: 8px;
+  width: 100%;
+  border: none;
+  border-radius: 10px;
+  padding: 8px;
+  background: linear-gradient(135deg, var(--accent-blue), var(--accent-teal));
+  color: #fff;
+  font-weight: 600;
+  font-size: 13px;
+  cursor: pointer;
+}
+.popup-save-btn:disabled { opacity: 0.7; cursor: default; }
+
+/* --------------------------------------------------------- shranjene točke */
+#savedSection { padding: 22px 16px 40px; }
+#savedSection h2 { color: var(--text); font-size: 18px; margin: 0 0 14px; }
+.saved-empty { color: var(--text-dim); font-size: 13px; margin: 0; }
+.saved-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 14px; }
+
+.saved-card {
+  background: var(--bg-card);
+  border-radius: 14px;
+  overflow: hidden;
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.3);
+}
+.saved-card-img { width: 100%; height: 110px; object-fit: cover; display: block; background: #0a0c10; }
+.saved-card-body { display: flex; align-items: center; justify-content: space-between; padding: 8px 10px; gap: 6px; }
+.saved-card-coords { font-size: 12px; color: var(--text); font-variant-numeric: tabular-nums; }
+.saved-card-delete {
+  background: none;
+  border: none;
+  color: var(--text-dim);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 6px;
+  display: flex;
+  flex-shrink: 0;
+}
+.saved-card-delete:hover { color: #ef4444; background: rgba(239, 68, 68, 0.1); }

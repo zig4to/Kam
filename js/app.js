@@ -25,6 +25,8 @@
   var radiusValue = document.getElementById('radiusValue');
   var btnRadiusCancel = document.getElementById('btnRadiusCancel');
   var btnRadiusConfirm = document.getElementById('btnRadiusConfirm');
+  var savedGrid = document.getElementById('savedGrid');
+  var savedEmpty = document.getElementById('savedEmpty');
 
   var startMarker = null;
   var previewCircle = null;
@@ -157,5 +159,187 @@
     if (resultMarker) map.removeLayer(resultMarker);
     resultMarker = L.marker(point, { icon: resultIcon }).addTo(map);
     map.flyTo(point, 14);
+    openResultPopup(point[0], point[1]);
   });
+
+  // ------------------------------------------------- shranjene točke: podatki
+  var STORAGE_KEY = 'kam-saved-points';
+  var THUMB_ZOOM = 14, THUMB_W = 320, THUMB_H = 200;
+
+  function loadSaved() {
+    try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || []; }
+    catch (e) { return []; }
+  }
+  function persistSaved(list) {
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(list)); return true; }
+    catch (e) { return false; }
+  }
+
+  /* Slippy-map projekcija (Web Mercator) za pretvorbo lat/lng v koordinate ploščic. */
+  function deg2num(lat, lng, z) {
+    var n = Math.pow(2, z);
+    var x = (lng + 180) / 360 * n;
+    var latRad = lat * Math.PI / 180;
+    var y = (1 - Math.log(Math.tan(latRad) + 1 / Math.cos(latRad)) / Math.PI) / 2 * n;
+    return { x: x, y: y };
+  }
+
+  function tileUrl(z, x, y) {
+    return 'https://tiles.bergfex.at/styles/bergfex-osm/' + z + '/' + x + '/' + y + '.jpg';
+  }
+
+  function loadTile(z, x, y, col, row) {
+    return new Promise(function (resolve) {
+      var img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.onload = function () { resolve({ img: img, col: col, row: row }); };
+      img.onerror = function () { resolve({ img: null, col: col, row: row }); };
+      img.src = tileUrl(z, x, y);
+    });
+  }
+
+  /* Sestavi 3x3 mrežo ploščic in izreže sličico, poravnano na izbrano točko. */
+  function makeThumbnail(lat, lng) {
+    var p = deg2num(lat, lng, THUMB_ZOOM);
+    var tx0 = Math.floor(p.x) - 1, ty0 = Math.floor(p.y) - 1;
+    var localX = (p.x - tx0) * 256, localY = (p.y - ty0) * 256;
+
+    var jobs = [];
+    for (var row = 0; row < 3; row++) {
+      for (var col = 0; col < 3; col++) {
+        jobs.push(loadTile(THUMB_ZOOM, tx0 + col, ty0 + row, col, row));
+      }
+    }
+
+    return Promise.all(jobs).then(function (tiles) {
+      var big = document.createElement('canvas');
+      big.width = 768; big.height = 768;
+      var bctx = big.getContext('2d');
+      tiles.forEach(function (t) {
+        if (t.img) bctx.drawImage(t.img, t.col * 256, t.row * 256);
+      });
+
+      var sx = Math.min(Math.max(localX - THUMB_W / 2, 0), 768 - THUMB_W);
+      var sy = Math.min(Math.max(localY - THUMB_H / 2, 0), 768 - THUMB_H);
+
+      var out = document.createElement('canvas');
+      out.width = THUMB_W; out.height = THUMB_H;
+      out.getContext('2d').drawImage(big, sx, sy, THUMB_W, THUMB_H, 0, 0, THUMB_W, THUMB_H);
+      try { return out.toDataURL('image/jpeg', 0.75); }
+      catch (e) { return null; }
+    });
+  }
+
+  // -------------------------------------------------- rezultat: popup okno
+  function buildResultPopup(lat, lng) {
+    var text = lat.toFixed(5) + ', ' + lng.toFixed(5);
+    var wrap = document.createElement('div');
+    wrap.className = 'result-popup';
+
+    var coords = document.createElement('div');
+    coords.className = 'popup-coords';
+    coords.textContent = text;
+    wrap.appendChild(coords);
+
+    var feedback = document.createElement('div');
+    feedback.className = 'popup-copied';
+    wrap.appendChild(feedback);
+
+    coords.addEventListener('click', function () {
+      if (!navigator.clipboard || !navigator.clipboard.writeText) return;
+      navigator.clipboard.writeText(text).then(function () {
+        feedback.textContent = 'Kopirano';
+        setTimeout(function () { feedback.textContent = ''; }, 1500);
+      }, function () {
+        feedback.textContent = 'Kopiranje ni uspelo';
+      });
+    });
+
+    var saveBtn = document.createElement('button');
+    saveBtn.className = 'popup-save-btn';
+    saveBtn.type = 'button';
+    saveBtn.textContent = 'Shrani';
+    saveBtn.addEventListener('click', function () {
+      saveBtn.disabled = true;
+      saveBtn.textContent = 'Shranjujem …';
+      makeThumbnail(lat, lng).then(function (thumb) {
+        var list = loadSaved();
+        list.push({ id: Date.now(), lat: lat, lng: lng, thumb: thumb, created: Date.now() });
+        var ok = persistSaved(list);
+        renderSavedGrid();
+        saveBtn.disabled = false;
+        saveBtn.textContent = ok ? 'Shranjeno ✓' : 'Napaka pri shranjevanju';
+        setTimeout(function () { saveBtn.textContent = 'Shrani'; }, 1500);
+      });
+    });
+    wrap.appendChild(saveBtn);
+
+    return wrap;
+  }
+
+  function openResultPopup(lat, lng) {
+    resultMarker.bindPopup(buildResultPopup(lat, lng), { offset: [0, -28] }).openPopup();
+  }
+
+  // ------------------------------------------------- shranjene točke: seznam
+  function deletePin() {
+    var svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    svg.setAttribute('viewBox', '0 0 24 24');
+    svg.setAttribute('width', '16');
+    svg.setAttribute('height', '16');
+    svg.setAttribute('fill', 'none');
+    svg.innerHTML = '<path d="M4 7h16M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2m-8 0 1 12a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1l1-12" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>';
+    return svg;
+  }
+
+  function renderSavedGrid() {
+    var list = loadSaved();
+    savedGrid.innerHTML = '';
+    savedEmpty.hidden = list.length > 0;
+
+    list.slice().reverse().forEach(function (rec) {
+      var card = document.createElement('div');
+      card.className = 'saved-card';
+
+      var img = document.createElement('img');
+      img.className = 'saved-card-img';
+      img.src = rec.thumb;
+      img.alt = 'Zemljevid lokacije';
+      card.appendChild(img);
+
+      var body = document.createElement('div');
+      body.className = 'saved-card-body';
+
+      var coords = document.createElement('div');
+      coords.className = 'saved-card-coords';
+      coords.textContent = rec.lat.toFixed(5) + ', ' + rec.lng.toFixed(5);
+      body.appendChild(coords);
+
+      var del = document.createElement('button');
+      del.className = 'saved-card-delete';
+      del.type = 'button';
+      del.title = 'Izbriši';
+      del.appendChild(deletePin());
+      del.addEventListener('click', function (e) {
+        e.stopPropagation();
+        persistSaved(loadSaved().filter(function (r) { return r.id !== rec.id; }));
+        renderSavedGrid();
+      });
+      body.appendChild(del);
+
+      card.appendChild(body);
+
+      card.addEventListener('click', function () {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+        map.flyTo([rec.lat, rec.lng], 14);
+        if (resultMarker) map.removeLayer(resultMarker);
+        resultMarker = L.marker([rec.lat, rec.lng], { icon: resultIcon }).addTo(map);
+        openResultPopup(rec.lat, rec.lng);
+      });
+
+      savedGrid.appendChild(card);
+    });
+  }
+
+  renderSavedGrid();
 })();
