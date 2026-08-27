@@ -1,0 +1,23 @@
+{
+  "name": "Kam — zemljevid za pohodništvo",
+  "short_name": "Kam",
+  "description": "Interaktiven zemljevid za odločanje, kam iti.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "display_override": ["standalone", "minimal-ui"],
+  "background_color": "#12151b",
+  "theme_color": "#12151b",
+  "orientation": "portrait",
+  "lang": "sl",
+  "dir": "ltr",
+  "categories": ["travel", "navigation"],
+  "launch_handler": { "client_mode": "navigate-existing" },
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-maskable-192.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable" },
+    { "src": "icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" },
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ]
+}
