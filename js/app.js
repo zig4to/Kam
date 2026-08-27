@@ -95,11 +95,25 @@
 
   btnStartCancel.addEventListener('click', closeStartOverlay);
 
-  /* Zemljevid je visok čez cel zaslon, zato do shranjenih točk drugače (zlasti
-     na telefonu, kjer prst premika zemljevid) ni mogoče zdrsniti. */
-  btnSaved.addEventListener('click', function () {
-    document.getElementById('savedSection').scrollIntoView({ behavior: 'smooth', block: 'start' });
-  });
+  /* Shranjene točke so zavihek, ki zdrsne čez zemljevid z desne — zemljevid
+     je visok čez cel zaslon, zato do njih drugače (zlasti na telefonu, kjer
+     prst premika zemljevid) ni mogoče zdrsniti. */
+  var savedSection = document.getElementById('savedSection');
+  var savedBackdrop = document.getElementById('savedBackdrop');
+  var btnSavedClose = document.getElementById('btnSavedClose');
+
+  function openSavedDrawer() {
+    savedSection.classList.add('open');
+    savedBackdrop.classList.add('open');
+  }
+  function closeSavedDrawer() {
+    savedSection.classList.remove('open');
+    savedBackdrop.classList.remove('open');
+  }
+
+  btnSaved.addEventListener('click', openSavedDrawer);
+  btnSavedClose.addEventListener('click', closeSavedDrawer);
+  savedBackdrop.addEventListener('click', closeSavedDrawer);
 
   btnCurrentLocation.addEventListener('click', function () {
     closeStartOverlay();
@@ -807,7 +821,7 @@
       card.appendChild(body);
 
       card.addEventListener('click', function () {
-        window.scrollTo({ top: 0, behavior: 'smooth' });
+        closeSavedDrawer();
         map.flyTo([rec.lat, rec.lng], 14);
         if (resultMarker) map.removeLayer(resultMarker);
         resultMarker = L.marker([rec.lat, rec.lng], { icon: resultIcon }).addTo(map);
