@@ -39,6 +39,20 @@
           </svg>
           <span>Shranjene točke</span>
         </button>
+        <button id="menuItemAreas" class="menu-item" type="button">
+          <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <path d="M4 8.5 9 5l6 3.5 5-3v10.5l-5 3-6-3.5-5 3V8.5Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/>
+            <path d="M9 5v10.5M15 8.5V19" stroke="currentColor" stroke-width="1.7"/>
+          </svg>
+          <span>Shranjena območja</span>
+        </button>
+        <button id="menuItemMountains" class="menu-item" type="button">
+          <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <path d="m4 17 5-8 3.2 4.5L14 10l6 7H4Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/>
+            <circle cx="17" cy="7" r="1.4" stroke="currentColor" stroke-width="1.5"/>
+          </svg>
+          <span>Gorovja</span>
+        </button>
       </div>
     </div>
   </header>
@@ -65,6 +79,66 @@
   </div>
   <div id="savedGrid" class="saved-grid"></div>
   <p id="savedEmpty" class="saved-empty">Ni še shranjenih točk.</p>
+</section>
+
+<div id="savedAreasBackdrop" class="saved-backdrop"></div>
+<section id="savedAreasSection" class="saved-drawer">
+  <div class="saved-drawer-head">
+    <h2>Shranjena območja</h2>
+    <button id="btnSavedAreasClose" class="saved-close-btn" type="button" aria-label="Zapri">
+      <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+        <path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+      </svg>
+    </button>
+  </div>
+  <button id="btnAddArea" class="option-btn area-add-btn" type="button">
+    <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.7"/>
+      <path d="M12 8v8M8 12h8" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+    </svg>
+    <span>Dodaj območje</span>
+  </button>
+  <button id="btnImportArea" class="option-btn area-add-btn" type="button">
+    <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <path d="M12 4v10M8 10l4 4 4-4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+    <span>Uvozi območje</span>
+  </button>
+  <input id="importAreaFile" type="file" accept="application/json,.json" hidden>
+  <hr class="panel-divider panel-divider-accent">
+  <div id="savedAreasGrid" class="area-list"></div>
+  <p id="savedAreasEmpty" class="saved-empty">Ni še shranjenih območij.</p>
+</section>
+
+<div id="savedMountainsBackdrop" class="saved-backdrop"></div>
+<section id="savedMountainsSection" class="saved-drawer">
+  <div class="saved-drawer-head">
+    <h2>Gorovja</h2>
+    <button id="btnSavedMountainsClose" class="saved-close-btn" type="button" aria-label="Zapri">
+      <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+        <path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+      </svg>
+    </button>
+  </div>
+  <button id="btnAddMountain" class="option-btn area-add-btn" type="button">
+    <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.7"/>
+      <path d="M12 8v8M8 12h8" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+    </svg>
+    <span>Dodaj gorovje</span>
+  </button>
+  <button id="btnImportMountain" class="option-btn area-add-btn" type="button">
+    <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <path d="M12 4v10M8 10l4 4 4-4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+    <span>Uvozi gorovje</span>
+  </button>
+  <input id="importMountainFile" type="file" accept="application/json,.json" hidden>
+  <hr class="panel-divider panel-divider-accent">
+  <div id="savedMountainsGrid" class="area-list"></div>
+  <p id="savedMountainsEmpty" class="saved-empty">Ni še shranjenih gorovij.</p>
 </section>
 
 <div id="hintToast" class="hint-toast" hidden></div>
@@ -131,6 +205,15 @@
     </label>
   </div>
 
+  <div id="eleFilter" class="ele-filter" hidden>
+    <span class="ele-filter-label">Nadmorska višina (neobvezno)</span>
+    <div class="ele-filter-inputs">
+      <input id="eleMin" type="number" inputmode="numeric" placeholder="Od (m)" min="0" max="9000" step="50">
+      <span class="ele-filter-sep">–</span>
+      <input id="eleMax" type="number" inputmode="numeric" placeholder="Do (m)" min="0" max="9000" step="50">
+    </div>
+  </div>
+
   <hr class="panel-divider">
 
   <label class="pick-mode-row draw-toggle-row">
@@ -161,6 +244,34 @@
   <div class="radius-actions">
     <button id="btnRadiusCancel" class="btn-secondary" type="button">Prekliči</button>
     <button id="btnRadiusConfirm" class="btn-primary" type="button">Potrdi</button>
+  </div>
+</div>
+
+<!-- Risanje novega shranjenega območja ali gorovja (iz zavihkov "Shranjena območja" /
+     "Gorovja") — uporablja isto komponento za risanje kot "Sam izberi območje" zgoraj,
+     le brez radija/izhodišča in z imenom ter gumbom Shrani namesto Potrdi. Naslov in
+     placeholder se glede na izvor preklopita v JS (glej addAreaTarget). -->
+<div id="areaAddPanel" class="radius-panel" hidden>
+  <div class="row"><strong id="areaAddPanelTitle">Novo območje</strong></div>
+  <input id="areaNameInput" class="area-name-input" type="text" maxlength="60" placeholder="Ime območja">
+
+  <div id="areaDrawStatus" class="draw-status">
+    <span id="areaDrawCount">Klikaj po zemljevidu</span>
+    <span class="draw-status-actions">
+      <button id="btnAreaDrawEdit" type="button" title="Vlečenje točk">
+        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+          <path d="M4 20l4.5-1L19 8.5a1.5 1.5 0 0 0 0-2.1l-1.4-1.4a1.5 1.5 0 0 0-2.1 0L5 15.5 4 20Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
+        </svg>
+        Uredi
+      </button>
+      <button id="btnAreaDrawUndo" type="button">Nazaj</button>
+      <button id="btnAreaDrawClear" type="button">Počisti</button>
+    </span>
+  </div>
+
+  <div class="radius-actions">
+    <button id="btnAreaAddCancel" class="btn-secondary" type="button">Prekliči</button>
+    <button id="btnAreaAddSave" class="btn-primary" type="button">Shrani</button>
   </div>
 </div>
 

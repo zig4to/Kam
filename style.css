@@ -96,6 +96,16 @@ body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
 .btn-menu:active { transform: scale(0.96); }
 .btn-menu svg { width: 19px; height: 19px; flex-shrink: 0; }
 
+/* Na namizju (miška, dovolj širok zaslon) sta oba gumba večja — na dotik
+   vezanih napravah je trenutna velikost že ravno prav za prst. */
+@media (min-width: 640px) and (pointer: fine) {
+  .btn-compass { padding: 12px 24px 12px 16px; font-size: 16px; gap: 10px; }
+  .btn-compass svg { width: 26px; height: 26px; }
+
+  .btn-menu { width: 48px; height: 48px; }
+  .btn-menu svg { width: 22px; height: 22px; }
+}
+
 .menu-dropdown {
   position: absolute;
   top: calc(100% + 8px);
@@ -287,6 +297,23 @@ body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
 .pick-mode-row input:checked ~ svg { color: var(--accent-blue); }
 .pick-mode-row:has(input:checked) { border-color: var(--accent-blue); background: rgba(56, 189, 248, 0.08); }
 
+.ele-filter { margin: -4px 0 14px; }
+.ele-filter-label { display: block; font-size: 12px; color: var(--text-dim); margin-bottom: 6px; }
+.ele-filter-inputs { display: flex; align-items: center; gap: 8px; }
+.ele-filter-sep { color: var(--text-dim); flex-shrink: 0; }
+.ele-filter input[type="number"] {
+  width: 0;
+  flex: 1;
+  box-sizing: border-box;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: var(--text);
+  border-radius: 10px;
+  padding: 8px 10px;
+  font-size: 13px;
+}
+.ele-filter input[type="number"]:focus { outline: none; border-color: var(--accent-blue); }
+
 .draw-toggle-row { margin-bottom: 14px; }
 .draw-toggle-row + .draw-status { margin-top: -6px; }
 
@@ -295,6 +322,7 @@ body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
   border-top: 1px solid rgba(255, 255, 255, 0.1);
   margin: 0 0 12px;
 }
+.panel-divider-accent { border-top-color: var(--accent-blue); }
 
 /* display: flex bi sicer prevladal nad privzetim [hidden] { display: none } */
 .draw-status[hidden] { display: none; }
@@ -380,7 +408,7 @@ body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
 }
 .popup-coords:active { background: rgba(255, 255, 255, 0.15); }
 .popup-copied { font-size: 11px; color: var(--accent-blue); height: 14px; margin-top: 4px; }
-.popup-repeat-btn, .popup-save-btn {
+.popup-repeat-btn, .popup-save-btn, .popup-edit-btn {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -394,19 +422,19 @@ body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
   font-size: 13px;
   cursor: pointer;
 }
-.popup-repeat-btn svg, .popup-save-btn svg { width: 16px; height: 16px; flex-shrink: 0; }
+.popup-repeat-btn svg, .popup-save-btn svg, .popup-edit-btn svg { width: 16px; height: 16px; flex-shrink: 0; }
 
-.popup-repeat-btn {
+.popup-repeat-btn, .popup-edit-btn {
   background: rgba(255, 255, 255, 0.1);
   color: var(--text);
 }
-.popup-repeat-btn:hover { background: rgba(255, 255, 255, 0.16); }
+.popup-repeat-btn:hover, .popup-edit-btn:hover { background: rgba(255, 255, 255, 0.16); }
 
 .popup-save-btn {
   background: linear-gradient(135deg, var(--accent-blue), var(--accent-teal));
   color: #fff;
 }
-.popup-repeat-btn:disabled, .popup-save-btn:disabled { opacity: 0.7; cursor: default; }
+.popup-repeat-btn:disabled, .popup-save-btn:disabled, .popup-edit-btn:disabled { opacity: 0.7; cursor: default; }
 
 /* --------------------------------------------------------- shranjene točke */
 /* Zavihek, ki zdrsne z desne čez ves zaslon (nad zemljevidom in panelom
@@ -446,7 +474,7 @@ body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
   justify-content: space-between;
   margin-bottom: 14px;
 }
-#savedSection h2 { color: var(--text); font-size: 18px; margin: 0; }
+#savedSection h2, #savedAreasSection h2, #savedMountainsSection h2 { color: var(--text); font-size: 18px; margin: 0; }
 .saved-close-btn {
   background: rgba(255, 255, 255, 0.08);
   border: none;
@@ -499,3 +527,46 @@ body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
   flex-shrink: 0;
 }
 .saved-card-delete:hover { color: #ef4444; background: rgba(239, 68, 68, 0.1); }
+
+/* --------------------------------------------------------- shranjena območja */
+.area-add-btn { margin-bottom: 18px; }
+
+.area-list { display: flex; flex-direction: column; gap: 10px; }
+.area-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  background: var(--bg-card);
+  border-radius: 12px;
+  padding: 10px 12px;
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.3);
+}
+.area-row-text { min-width: 0; }
+.area-row-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.area-row-name.is-unnamed { color: var(--text-dim); font-weight: 500; font-style: italic; }
+.area-row-sub { font-size: 11px; color: var(--text-dim); margin-top: 2px; }
+
+.area-row-actions { display: flex; align-items: center; gap: 2px; flex-shrink: 0; }
+.area-row-rename:hover, .area-row-export:hover { color: var(--accent-blue); background: rgba(56, 189, 248, 0.12); }
+
+.area-name-input {
+  width: 100%;
+  box-sizing: border-box;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: var(--text);
+  border-radius: 10px;
+  padding: 9px 11px;
+  font-size: 14px;
+  margin: 10px 0 4px;
+}
+.area-name-input:focus { outline: none; border-color: var(--accent-blue); }
