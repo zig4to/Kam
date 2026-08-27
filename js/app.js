@@ -198,36 +198,35 @@
     }, function (err) { clearTimeout(timer); throw err; });
   }
 
-  /* Poizvede resnične OZNAČENE točke (vrhovi, vode, večja naselja, znamenitosti
-     — torej take, ki imajo ime in bi bile na zemljevidu vidne kot napis) iz
-     OpenStreetMap prek javnega Overpass API-ja — Bergfex ploščice so le slike
-     brez poizvedljivih podatkov, zato za to potrebujemo ločen vir. Zaselki
-     (place=hamlet) so namenoma izpuščeni: v gosto poseljenih območjih jih je
-     na tisoče, kar poizvedbo pri velikih radijih upočasni brez prida, saj kot
-     cilj vseeno niso posebej zanimivi. Izpis je omejen na 250 zadetkov, da
-     prenos in razčlenjevanje na telefonu ne trajata predolgo. Javni strežnik
-     dovoli le 2 sočasni zahtevi na IP, zato ob 429 enkrat počakamo in
-     poskusimo znova. */
+  /* Poizvede izključno VRHOVE z imenom (natural=peak + name) iz OpenStreetMap
+     prek javnega Overpass API-ja — to so točke, ki so na zemljevidu narisane s
+     trikotnikom in napisanim imenom. Bergfex ploščice so le slike brez
+     poizvedljivih podatkov, zato za to potrebujemo ločen vir.
+     Vrhovi so v OSM praktično vedno vozlišča, zato poizvedujemo samo po
+     `node` (ne `nwr`) — to preskoči poti in relacije in je opazno hitrejše.
+     Izpis mora biti `out body` in NE `out tags`: slednji vrne le oznake brez
+     lat/lon, kar bi pomenilo, da nobenega zadetka ne moremo postaviti na
+     zemljevid. Javni strežnik dovoli le 2 sočasni zahtevi na IP, zato ob 429
+     enkrat počakamo in poskusimo znova. */
   function queryMarkedPoint(lat, lng, radiusMeters) {
-    var query = '[out:json][timeout:25];(' +
-      'nwr["natural"="peak"]["name"](around:' + radiusMeters + ',' + lat + ',' + lng + ');' +
-      'nwr["natural"="water"]["name"](around:' + radiusMeters + ',' + lat + ',' + lng + ');' +
-      'nwr["place"~"^(city|town|village)$"]["name"](around:' + radiusMeters + ',' + lat + ',' + lng + ');' +
-      'nwr["tourism"~"^(attraction|viewpoint|museum|artwork)$"]["name"](around:' + radiusMeters + ',' + lat + ',' + lng + ');' +
-      ');out center tags 250;';
+    var query = '[out:json][timeout:25];' +
+      'node["natural"="peak"]["name"](around:' + radiusMeters + ',' + lat + ',' + lng + ');' +
+      'out body 1000;';
 
     return overpassRequest(query).catch(function (err) {
       if (err.status === 429) return sleep(2500).then(function () { return overpassRequest(query); });
       throw err;
     }).then(function (data) {
       var elements = (data.elements || []).filter(function (el) {
-        return el.tags && el.tags.name && ((el.type === 'node' && el.lat != null) || (el.center && el.center.lat != null));
+        return el.tags && el.tags.name && el.lat != null;
       });
       if (!elements.length) return { status: 'empty' };
       var pick = elements[Math.floor(Math.random() * elements.length)];
-      var plat = pick.type === 'node' ? pick.lat : pick.center.lat;
-      var plng = pick.type === 'node' ? pick.lon : pick.center.lon;
-      return { status: 'ok', lat: plat, lng: plng, name: pick.tags.name };
+      var plat = pick.lat;
+      var plng = pick.lon;
+      var ele = parseFloat(pick.tags.ele);
+      var label = pick.tags.name + (isFinite(ele) ? ' (' + Math.round(ele) + ' m)' : '');
+      return { status: 'ok', lat: plat, lng: plng, name: label };
     }).catch(function () { return { status: 'error' }; });
   }
 
@@ -266,10 +265,10 @@
         if (found.status === 'ok') {
           showResult([found.lat, found.lng], found.name);
         } else if (found.status === 'empty') {
-          showToast('Ni označenih točk v tem radiju, izbrana naključna.', 3500);
+          showToast('Ni vrhov v tem radiju, izbrana naključna točka.', 3500);
           showResult(randomPointInCircle(start[0], start[1], radius));
         } else {
-          showToast('Iskanje označenih točk ni uspelo, izbrana naključna.', 3500);
+          showToast('Iskanje vrhov ni uspelo, izbrana naključna točka.', 3500);
           showResult(randomPointInCircle(start[0], start[1], radius));
         }
       });
