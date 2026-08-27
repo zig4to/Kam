@@ -177,34 +177,45 @@
     return checked ? checked.value : 'random';
   }
 
-  /* Poizvede resnične označene točke (vrhovi, jezera, kraji, znamenitosti) iz
-     OpenStreetMap prek javnega Overpass API-ja — Bergfex ploščice so le slike
-     brez poizvedljivih podatkov, zato za to potrebujemo ločen vir. */
-  function queryMarkedPoint(lat, lng, radiusMeters) {
-    var query = '[out:json][timeout:20];(' +
-      'nwr["natural"="peak"](around:' + radiusMeters + ',' + lat + ',' + lng + ');' +
-      'nwr["natural"="water"](around:' + radiusMeters + ',' + lat + ',' + lng + ');' +
-      'nwr["place"~"^(city|town|village|hamlet)$"](around:' + radiusMeters + ',' + lat + ',' + lng + ');' +
-      'nwr["tourism"~"^(attraction|viewpoint|museum|artwork)$"](around:' + radiusMeters + ',' + lat + ',' + lng + ');' +
-      ');out center tags;';
+  function sleep(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
 
+  /* Ena poizvedba na Overpass; zavrne se, če je odgovor napačen ali ni ok. */
+  function overpassRequest(query) {
     return fetch('https://overpass-api.de/api/interpreter', {
       method: 'POST',
       body: 'data=' + encodeURIComponent(query)
     }).then(function (res) {
-      if (!res.ok) throw new Error('overpass ' + res.status);
+      if (!res.ok) { var err = new Error('overpass ' + res.status); err.status = res.status; throw err; }
       return res.json();
+    });
+  }
+
+  /* Poizvede resnične OZNAČENE točke (vrhovi, vode, kraji, znamenitosti — torej
+     take, ki imajo ime in bi bile na zemljevidu vidne kot napis) iz OpenStreetMap
+     prek javnega Overpass API-ja — Bergfex ploščice so le slike brez poizvedljivih
+     podatkov, zato za to potrebujemo ločen vir. Javni strežnik dovoli le 2 sočasni
+     zahtevi na IP, zato ob 429 enkrat počakamo in poskusimo znova. */
+  function queryMarkedPoint(lat, lng, radiusMeters) {
+    var query = '[out:json][timeout:20];(' +
+      'nwr["natural"="peak"]["name"](around:' + radiusMeters + ',' + lat + ',' + lng + ');' +
+      'nwr["natural"="water"]["name"](around:' + radiusMeters + ',' + lat + ',' + lng + ');' +
+      'nwr["place"~"^(city|town|village|hamlet)$"]["name"](around:' + radiusMeters + ',' + lat + ',' + lng + ');' +
+      'nwr["tourism"~"^(attraction|viewpoint|museum|artwork)$"]["name"](around:' + radiusMeters + ',' + lat + ',' + lng + ');' +
+      ');out center tags;';
+
+    return overpassRequest(query).catch(function (err) {
+      if (err.status === 429) return sleep(2500).then(function () { return overpassRequest(query); });
+      throw err;
     }).then(function (data) {
       var elements = (data.elements || []).filter(function (el) {
-        return (el.type === 'node' && el.lat != null) || (el.center && el.center.lat != null);
+        return el.tags && el.tags.name && ((el.type === 'node' && el.lat != null) || (el.center && el.center.lat != null));
       });
-      if (!elements.length) return null;
+      if (!elements.length) return { status: 'empty' };
       var pick = elements[Math.floor(Math.random() * elements.length)];
       var plat = pick.type === 'node' ? pick.lat : pick.center.lat;
       var plng = pick.type === 'node' ? pick.lon : pick.center.lon;
-      var name = pick.tags && pick.tags.name ? pick.tags.name : null;
-      return { lat: plat, lng: plng, name: name };
-    }).catch(function () { return null; });
+      return { status: 'ok', lat: plat, lng: plng, name: pick.tags.name };
+    }).catch(function () { return { status: 'error' }; });
   }
 
   function endRadiusStep() {
@@ -239,10 +250,13 @@
         btnRadiusConfirm.textContent = 'Potrdi';
         if (token !== radiusStepToken) return; // preklicano medtem
         endRadiusStep();
-        if (found) {
+        if (found.status === 'ok') {
           showResult([found.lat, found.lng], found.name);
+        } else if (found.status === 'empty') {
+          showToast('Ni označenih točk v tem radiju, izbrana naključna.', 3500);
+          showResult(randomPointInCircle(start[0], start[1], radius));
         } else {
-          showToast('Ni najdenih označenih točk, izbrana naključna.', 3000);
+          showToast('Iskanje označenih točk ni uspelo, izbrana naključna.', 3500);
           showResult(randomPointInCircle(start[0], start[1], radius));
         }
       });
