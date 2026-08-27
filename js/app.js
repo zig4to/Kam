@@ -16,6 +16,7 @@
   // ------------------------------------------------------------- elementi
   var startOverlay = document.getElementById('startOverlay');
   var btnCompass = document.getElementById('btnCompass');
+  var btnSaved = document.getElementById('btnSaved');
   var btnCurrentLocation = document.getElementById('btnCurrentLocation');
   var btnPickOnMap = document.getElementById('btnPickOnMap');
   var btnStartCancel = document.getElementById('btnStartCancel');
@@ -91,6 +92,12 @@
   });
 
   btnStartCancel.addEventListener('click', closeStartOverlay);
+
+  /* Zemljevid je visok čez cel zaslon, zato do shranjenih točk drugače (zlasti
+     na telefonu, kjer prst premika zemljevid) ni mogoče zdrsniti. */
+  btnSaved.addEventListener('click', function () {
+    document.getElementById('savedSection').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  });
 
   btnCurrentLocation.addEventListener('click', function () {
     closeStartOverlay();
