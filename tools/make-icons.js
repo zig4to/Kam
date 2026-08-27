@@ -8,10 +8,9 @@ var SS = 4;                        // nadvzorčenje za mehke robove
 
 var GRAD_START = [0x38, 0xbd, 0xf8];   // sky-blue
 var GRAD_END = [0x0f, 0x76, 0x6e];     // teal
-var PEAK = [0xf3, 0xf5, 0xf8];
-var SNOW = [0x7d, 0xd3, 0xfc];
+var LINE = [0xff, 0xff, 0xff];
 
-/* Risba (zaprt greben + dve snežni kapi) je v koordinatah 0..192;
+/* Risba (zaprt greben, samo obris + dve snežni kljuki) je v koordinatah 0..192;
    njen dejanski obseg je x 32..160, y 48..140 — sredina (96, 94). */
 var ART = { cx: 96, cy: 94 };
 
@@ -24,13 +23,14 @@ function insideRoundRect(x, y, w, h, r) {
   return dx * dx + dy * dy <= r * r;
 }
 
-function insidePolygon(x, y, pts) {
-  var hit = false;
-  for (var i = 0, j = pts.length - 2; i < pts.length; j = i, i += 2) {
-    var xi = pts[i], yi = pts[i + 1], xj = pts[j], yj = pts[j + 1];
-    if ((yi > y) !== (yj > y) && x < (xj - xi) * (y - yi) / (yj - yi) + xi) hit = !hit;
-  }
-  return hit;
+/* Odsek z zaobljenima koncema: razdalja do daljice <= polovica debeline. */
+function insideCapsule(x, y, x1, y1, x2, y2, halfW) {
+  var vx = x2 - x1, vy = y2 - y1;
+  var len2 = vx * vx + vy * vy;
+  var t = len2 ? ((x - x1) * vx + (y - y1) * vy) / len2 : 0;
+  t = Math.min(1, Math.max(0, t));
+  var dx = x - (x1 + t * vx), dy = y - (y1 + t * vy);
+  return dx * dx + dy * dy <= halfW * halfW;
 }
 
 /* Diagonalen preliv (ujema SVG linearGradient 14.7%,6.4% -> 85.3%,93.6%). */
@@ -115,23 +115,22 @@ function drawIcon(size, maskable) {
     : function (x, y) { return insideRoundRect(x, y, n, n, 40 * unit); };
   bmp.fillFn(bgTest, function (x, y) { return gradColor(x, y, n); });
 
-  // zaprt greben (isti potek kot pot v icon.svg, a zaprt na dnu) — polno bel
-  var ridge = [32, 140, 72, 64, 96, 96, 120, 48, 160, 140];
-  var polyRidge = [];
-  for (var i = 0; i < ridge.length; i += 2) polyRidge.push(X(ridge[i]), Y(ridge[i + 1]));
-  bmp.fill(function (x, y) { return insidePolygon(x, y, polyRidge); }, PEAK);
+  // zaprt greben, samo obris (notranjost prazna, prosevi preliv ozadja)
+  var ridge = [[32, 140, 72, 64], [72, 64, 96, 96], [96, 96, 120, 48], [120, 48, 160, 140], [160, 140, 32, 140]];
+  var ridgeHalfW = 6.8 * S;
+  ridge.forEach(function (seg) {
+    bmp.fill(function (x, y) { return insideCapsule(x, y, X(seg[0]), Y(seg[1]), X(seg[2]), Y(seg[3]), ridgeHalfW); }, LINE);
+  });
 
-  // snežna kapa na vrhu 1 — pomanjšan trikotnik po robovih vrha, ne štrli čez rob
-  var snow1 = [65.26, 76.8, 72, 64, 81.6, 76.8];
-  var polySnow1 = [];
-  for (i = 0; i < snow1.length; i += 2) polySnow1.push(X(snow1[i]), Y(snow1[i + 1]));
-  bmp.fill(function (x, y) { return insidePolygon(x, y, polySnow1); }, SNOW);
-
-  // snežna kapa na vrhu 2
-  var snow2 = [113.6, 60.8, 120, 48, 125.57, 60.8];
-  var polySnow2 = [];
-  for (i = 0; i < snow2.length; i += 2) polySnow2.push(X(snow2[i]), Y(snow2[i + 1]));
-  bmp.fill(function (x, y) { return insidePolygon(x, y, polySnow2); }, SNOW);
+  // snežni kljuki — točke ležijo natanko na robovih vrhov, zato ne štrlijo čez
+  var snow = [
+    [65.26, 76.8, 72, 64], [72, 64, 81.6, 76.8],
+    [113.6, 60.8, 120, 48], [120, 48, 125.57, 60.8]
+  ];
+  var snowHalfW = 5.2 * S;
+  snow.forEach(function (seg) {
+    bmp.fill(function (x, y) { return insideCapsule(x, y, X(seg[0]), Y(seg[1]), X(seg[2]), Y(seg[3]), snowHalfW); }, LINE);
+  });
 
   return downsample(bmp, size);
 }
