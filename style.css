@@ -307,6 +307,21 @@ body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
 }
 .draw-status button:hover { background: rgba(255, 255, 255, 0.14); }
 .draw-status button:disabled { opacity: 0.4; cursor: default; }
+.draw-status button svg { width: 13px; height: 13px; vertical-align: -2px; margin-right: 3px; }
+.draw-status button.active { background: var(--accent-blue); color: #0b1622; }
+.draw-status button.active:hover { background: var(--accent-blue); }
+
+.draw-vertex-icon {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--accent-blue);
+  border: 2px solid #fff;
+  box-sizing: border-box;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+}
+.draw-vertex-icon.editable { cursor: grab; }
+.draw-vertex-icon.editable:active { cursor: grabbing; }
 
 .radius-actions { display: flex; gap: 10px; }
 .btn-secondary, .btn-primary {

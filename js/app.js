@@ -32,6 +32,7 @@
   var drawAreaToggle = document.getElementById('drawAreaToggle');
   var drawStatus = document.getElementById('drawStatus');
   var drawCount = document.getElementById('drawCount');
+  var btnDrawEdit = document.getElementById('btnDrawEdit');
   var btnDrawUndo = document.getElementById('btnDrawUndo');
   var btnDrawClear = document.getElementById('btnDrawClear');
   var savedGrid = document.getElementById('savedGrid');
@@ -257,12 +258,22 @@
 
   // ------------------------------------------------ lastno narisano območje
   var drawPoints = [];
-  var drawShape = null;      // polilinija (< 3 točke) ali poligon
-  var drawVertices = null;   // pikice na ogliščih
+  var drawShape = null;          // polilinija (< 3 točke) ali poligon
+  var vertexMarkers = [];        // vlečljivi označevalci na ogliščih
+  var editMode = false;          // ali lahko trenutno vlečemo oglišča
+
+  function vertexIcon() {
+    return L.divIcon({
+      className: 'draw-vertex-icon' + (editMode ? ' editable' : ''),
+      iconSize: [12, 12],
+      iconAnchor: [6, 6]
+    });
+  }
 
   function clearDrawLayers() {
     if (drawShape) { map.removeLayer(drawShape); drawShape = null; }
-    if (drawVertices) { map.removeLayer(drawVertices); drawVertices = null; }
+    vertexMarkers.forEach(function (m) { map.removeLayer(m); });
+    vertexMarkers = [];
   }
 
   function updateDrawStatus() {
@@ -270,20 +281,42 @@
     drawCount.textContent = n === 0 ? 'Klikaj po zemljevidu' :
       n < 3 ? (n + (n === 1 ? ' točka' : ' točki') + ' — potrebne so vsaj 3') :
       (n + (n === 2 ? ' točki' : n === 3 || n === 4 ? ' točke' : ' točk'));
+    btnDrawEdit.disabled = n === 0;
     btnDrawUndo.disabled = n === 0;
     btnDrawClear.disabled = n === 0;
+  }
+
+  /* Med vlečenjem oglišča prerišemo samo obris (poligon/polilinijo), ne pa
+     tudi označevalcev — s tem ne prekinemo vlečenja tistega, ki se ravno
+     premika. */
+  function redrawShapeOnly() {
+    if (drawShape) { map.removeLayer(drawShape); drawShape = null; }
+    if (drawPoints.length) {
+      drawShape = drawPoints.length >= 3
+        ? L.polygon(drawPoints, AREA_STYLE).addTo(map)
+        : L.polyline(drawPoints, { color: AREA_STYLE.color, weight: 2, dashArray: '5,5' }).addTo(map);
+    }
   }
 
   function redrawArea() {
     clearDrawLayers();
     if (drawPoints.length) {
-      drawShape = drawPoints.length >= 3
-        ? L.polygon(drawPoints, AREA_STYLE).addTo(map)
-        : L.polyline(drawPoints, { color: AREA_STYLE.color, weight: 2, dashArray: '5,5' }).addTo(map);
-      drawVertices = L.layerGroup(drawPoints.map(function (p) {
-        return L.circleMarker(p, { radius: 4, color: '#fff', weight: 2, fillColor: AREA_STYLE.color, fillOpacity: 1 });
-      })).addTo(map);
+      redrawShapeOnly();
+      drawPoints.forEach(function (p, i) {
+        var marker = L.marker(p, { icon: vertexIcon(), draggable: editMode }).addTo(map);
+        marker.on('drag', function (e) {
+          var ll = e.target.getLatLng();
+          drawPoints[i] = [ll.lat, ll.lng];
+          redrawShapeOnly();
+        });
+        vertexMarkers.push(marker);
+      });
     }
+    /* Če je zadnja točka izginila (Nazaj/Počisti), medtem ko je bilo urejanje
+       vklopljeno, ni več ničesar za vleči — samodejno izklopimo, sicer bi
+       ostal klik na zemljevid nepovezan (dodajanje novih točk je med
+       urejanjem namenoma izklopljeno). */
+    if (!drawPoints.length && editMode) setEditMode(false);
     updateDrawStatus();
   }
 
@@ -291,6 +324,26 @@
     drawPoints.push([e.latlng.lat, e.latlng.lng]);
     redrawArea();
   }
+
+  /* "Uredi": ko je vklopljeno, oglišča postanejo vlečljiva, klik na
+     zemljevid pa ne dodaja več novih točk (da se med vlečenjem ne doda
+     nenamerna točka). Gumb se ob tem obarva. */
+  function setEditMode(on) {
+    editMode = on;
+    btnDrawEdit.classList.toggle('active', on);
+    if (on) {
+      map.off('click', onDrawClick);
+      showToast('Povleci točko, da jo premakneš', 2500);
+    } else {
+      map.on('click', onDrawClick);
+    }
+    vertexMarkers.forEach(function (m) {
+      m.setIcon(vertexIcon());
+      if (on) m.dragging.enable(); else m.dragging.disable();
+    });
+  }
+
+  btnDrawEdit.addEventListener('click', function () { setEditMode(!editMode); });
 
   function enterDrawMode() {
     radiusControls.hidden = true;
@@ -304,6 +357,7 @@
   function exitDrawMode() {
     radiusControls.hidden = false;
     drawStatus.hidden = true;
+    setEditMode(false);
     map.off('click', onDrawClick);
     drawPoints = [];
     clearDrawLayers();
@@ -373,6 +427,7 @@
     if (startMarker) { map.removeLayer(startMarker); startMarker = null; }
     if (drawAreaToggle.checked) {
       drawAreaToggle.checked = false;
+      setEditMode(false);
       map.off('click', onDrawClick);
       radiusControls.hidden = false;
       drawStatus.hidden = true;
