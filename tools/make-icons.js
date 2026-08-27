@@ -6,7 +6,7 @@ var zlib = require('zlib'), fs = require('fs'), path = require('path');
 var OUT = path.join(__dirname, '..', 'icons');
 var SS = 4;                        // nadvzorčenje za mehke robove
 
-var BG = [0x12, 0x15, 0x1b];
+var BG = [0x0d, 0x2a, 0x44];
 var PEAK = [0xf3, 0xf5, 0xf8];
 var SNOW = [0x7d, 0xd3, 0xfc];
 var SUN = [0xf5, 0x9e, 0x0b];
