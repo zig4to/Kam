@@ -16,7 +16,9 @@
   // ------------------------------------------------------------- elementi
   var startOverlay = document.getElementById('startOverlay');
   var btnCompass = document.getElementById('btnCompass');
-  var btnSaved = document.getElementById('btnSaved');
+  var btnMenu = document.getElementById('btnMenu');
+  var menuDropdown = document.getElementById('menuDropdown');
+  var menuItemSaved = document.getElementById('menuItemSaved');
   var btnCurrentLocation = document.getElementById('btnCurrentLocation');
   var btnPickOnMap = document.getElementById('btnPickOnMap');
   var btnPickArea = document.getElementById('btnPickArea');
@@ -111,9 +113,35 @@
     savedBackdrop.classList.remove('open');
   }
 
-  btnSaved.addEventListener('click', openSavedDrawer);
   btnSavedClose.addEventListener('click', closeSavedDrawer);
   savedBackdrop.addEventListener('click', closeSavedDrawer);
+
+  // -------------------------------------------------------------- meni
+  function openMenu() {
+    menuDropdown.hidden = false;
+    btnMenu.setAttribute('aria-expanded', 'true');
+  }
+  function closeMenu() {
+    menuDropdown.hidden = true;
+    btnMenu.setAttribute('aria-expanded', 'false');
+  }
+
+  btnMenu.addEventListener('click', function (e) {
+    e.stopPropagation();
+    if (menuDropdown.hidden) openMenu(); else closeMenu();
+  });
+
+  /* Klik kjerkoli izven menija ga zapre — ker se poteg zemljevida (mousedown
+     na #map) ne zaključi vedno s 'click', to zadošča brez posebne obravnave
+     zemljevida. */
+  document.addEventListener('click', function (e) {
+    if (!menuDropdown.hidden && !menuDropdown.contains(e.target)) closeMenu();
+  });
+
+  menuItemSaved.addEventListener('click', function () {
+    closeMenu();
+    openSavedDrawer();
+  });
 
   btnCurrentLocation.addEventListener('click', function () {
     closeStartOverlay();

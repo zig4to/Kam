@@ -26,12 +26,21 @@
       </svg>
       <span>Vrži kompas</span>
     </button>
-    <button id="btnSaved" class="btn-saved" type="button" title="Shranjene točke" aria-label="Shranjene točke">
-      <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-        <path d="M6.5 3.5h11a1 1 0 0 1 1 1v16l-6.5-4-6.5 4v-16a1 1 0 0 1 1-1Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
-      </svg>
-      <span>Shranjeno</span>
-    </button>
+    <div class="menu-wrap">
+      <button id="btnMenu" class="btn-menu" type="button" title="Meni" aria-label="Meni" aria-haspopup="true" aria-expanded="false">
+        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+          <path d="M4 7h16M4 12h16M4 17h16" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+        </svg>
+      </button>
+      <div id="menuDropdown" class="menu-dropdown" hidden>
+        <button id="menuItemSaved" class="menu-item" type="button">
+          <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <path d="M6.5 3.5h11a1 1 0 0 1 1 1v16l-6.5-4-6.5 4v-16a1 1 0 0 1 1-1Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/>
+          </svg>
+          <span>Shranjene točke</span>
+        </button>
+      </div>
+    </div>
   </header>
   <div id="map"></div>
   <div id="twoFingerHint" class="two-finger-hint" title="Za premik uporabi dva prsta" aria-label="Za premik uporabi dva prsta">
