@@ -81,6 +81,12 @@
   var btnRadiusCancel = document.getElementById('btnRadiusCancel');
   var btnRadiusConfirm = document.getElementById('btnRadiusConfirm');
   var radiusPresets = document.getElementById('radiusPresets');
+  var radiusControls = document.getElementById('radiusControls');
+  var drawAreaToggle = document.getElementById('drawAreaToggle');
+  var drawStatus = document.getElementById('drawStatus');
+  var drawCount = document.getElementById('drawCount');
+  var btnDrawUndo = document.getElementById('btnDrawUndo');
+  var btnDrawClear = document.getElementById('btnDrawClear');
   var savedGrid = document.getElementById('savedGrid');
   var savedEmpty = document.getElementById('savedEmpty');
 
@@ -170,6 +176,13 @@
   });
 
   // --------------------------------------------------------- korak 2: radij
+  var AREA_STYLE = { color: '#38bdf8', weight: 2, fillColor: '#38bdf8', fillOpacity: 0.12 };
+
+  function createPreviewCircle(latlng, radius) {
+    if (previewCircle) map.removeLayer(previewCircle);
+    previewCircle = L.circle(latlng, L.extend({ radius: radius }, AREA_STYLE)).addTo(map);
+  }
+
   function beginRadiusStep(latlng) {
     pendingStart = latlng;
 
@@ -177,14 +190,7 @@
     startMarker = L.marker(latlng, { icon: startIcon }).addTo(map);
 
     var radius = parseInt(radiusSlider.value, 10);
-    if (previewCircle) map.removeLayer(previewCircle);
-    previewCircle = L.circle(latlng, {
-      radius: radius,
-      color: '#38bdf8',
-      weight: 2,
-      fillColor: '#38bdf8',
-      fillOpacity: 0.12
-    }).addTo(map);
+    createPreviewCircle(latlng, radius);
 
     radiusValue.textContent = formatRadius(radius);
     syncPresetActive(radius);
@@ -263,9 +269,9 @@
      lat/lon, kar bi pomenilo, da nobenega zadetka ne moremo postaviti na
      zemljevid. Javni strežnik dovoli le 2 sočasni zahtevi na IP, zato ob 429
      enkrat počakamo in poskusimo znova. */
-  function queryMarkedPoint(lat, lng, radiusMeters) {
+  function queryMarkedPoint(areaFilter) {
     var query = '[out:json][timeout:25];' +
-      'node["natural"="peak"]["name"](around:' + radiusMeters + ',' + lat + ',' + lng + ');' +
+      'node["natural"="peak"]["name"](' + areaFilter + ');' +
       'out body 1000;';
 
     return overpassRequest(query).catch(function (err) {
@@ -285,11 +291,121 @@
     }).catch(function () { return { status: 'error' }; });
   }
 
+  // ------------------------------------------------ lastno narisano območje
+  var drawPoints = [];
+  var drawShape = null;      // polilinija (< 3 točke) ali poligon
+  var drawVertices = null;   // pikice na ogliščih
+
+  function clearDrawLayers() {
+    if (drawShape) { map.removeLayer(drawShape); drawShape = null; }
+    if (drawVertices) { map.removeLayer(drawVertices); drawVertices = null; }
+  }
+
+  function updateDrawStatus() {
+    var n = drawPoints.length;
+    drawCount.textContent = n === 0 ? 'Klikaj po zemljevidu' :
+      n < 3 ? (n + (n === 1 ? ' točka' : ' točki') + ' — potrebne so vsaj 3') :
+      (n + (n === 2 ? ' točki' : n === 3 || n === 4 ? ' točke' : ' točk'));
+    btnDrawUndo.disabled = n === 0;
+    btnDrawClear.disabled = n === 0;
+  }
+
+  function redrawArea() {
+    clearDrawLayers();
+    if (drawPoints.length) {
+      drawShape = drawPoints.length >= 3
+        ? L.polygon(drawPoints, AREA_STYLE).addTo(map)
+        : L.polyline(drawPoints, { color: AREA_STYLE.color, weight: 2, dashArray: '5,5' }).addTo(map);
+      drawVertices = L.layerGroup(drawPoints.map(function (p) {
+        return L.circleMarker(p, { radius: 4, color: '#fff', weight: 2, fillColor: AREA_STYLE.color, fillOpacity: 1 });
+      })).addTo(map);
+    }
+    updateDrawStatus();
+  }
+
+  function onDrawClick(e) {
+    drawPoints.push([e.latlng.lat, e.latlng.lng]);
+    redrawArea();
+  }
+
+  function enterDrawMode() {
+    radiusControls.hidden = true;
+    drawStatus.hidden = false;
+    if (previewCircle) { map.removeLayer(previewCircle); previewCircle = null; }
+    map.on('click', onDrawClick);
+    showToast('Klikaj po zemljevidu in obkroži svoje območje', 3500);
+    updateDrawStatus();
+  }
+
+  function exitDrawMode() {
+    radiusControls.hidden = false;
+    drawStatus.hidden = true;
+    map.off('click', onDrawClick);
+    drawPoints = [];
+    clearDrawLayers();
+    if (pendingStart) createPreviewCircle(pendingStart, parseInt(radiusSlider.value, 10));
+  }
+
+  drawAreaToggle.addEventListener('change', function () {
+    if (drawAreaToggle.checked) enterDrawMode(); else exitDrawMode();
+  });
+
+  btnDrawUndo.addEventListener('click', function () {
+    drawPoints.pop();
+    redrawArea();
+  });
+
+  btnDrawClear.addEventListener('click', function () {
+    drawPoints = [];
+    redrawArea();
+  });
+
+  /* Test žarka: ali točka leži znotraj poligona. */
+  function pointInPolygon(lat, lng, poly) {
+    var inside = false;
+    for (var i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+      var yi = poly[i][0], xi = poly[i][1], yj = poly[j][0], xj = poly[j][1];
+      if ((yi > lat) !== (yj > lat) && lng < (xj - xi) * (lat - yi) / (yj - yi) + xi) inside = !inside;
+    }
+    return inside;
+  }
+
+  /* Naključna točka v poligonu z zavračanjem: žrebamo v očrtanem pravokotniku,
+     dokler zadetek ne pade znotraj. Pri zelo ozkih oblikah lahko spodleti,
+     zato omejeno število poskusov. */
+  function randomPointInPolygon(poly) {
+    var minLat = Infinity, maxLat = -Infinity, minLng = Infinity, maxLng = -Infinity;
+    poly.forEach(function (p) {
+      minLat = Math.min(minLat, p[0]); maxLat = Math.max(maxLat, p[0]);
+      minLng = Math.min(minLng, p[1]); maxLng = Math.max(maxLng, p[1]);
+    });
+    for (var i = 0; i < 800; i++) {
+      var lat = minLat + Math.random() * (maxLat - minLat);
+      var lng = minLng + Math.random() * (maxLng - minLng);
+      if (pointInPolygon(lat, lng, poly)) return [lat, lng];
+    }
+    return null;
+  }
+
+  function polyFilter(poly) {
+    return 'poly:"' + poly.map(function (p) {
+      return p[0].toFixed(6) + ' ' + p[1].toFixed(6);
+    }).join(' ') + '"';
+  }
+
   function endRadiusStep() {
     radiusStepToken++;
     radiusPanel.hidden = true;
     if (previewCircle) { map.removeLayer(previewCircle); previewCircle = null; }
     if (startMarker) { map.removeLayer(startMarker); startMarker = null; }
+    if (drawAreaToggle.checked) {
+      drawAreaToggle.checked = false;
+      map.off('click', onDrawClick);
+      radiusControls.hidden = false;
+      drawStatus.hidden = true;
+    }
+    drawPoints = [];
+    clearDrawLayers();
     pendingStart = null;
   }
 
@@ -304,34 +420,61 @@
   }
 
   btnRadiusConfirm.addEventListener('click', function () {
-    if (!pendingStart) return;
-    var radius = parseInt(radiusSlider.value, 10);
-    var start = pendingStart;
+    var useDrawn = drawAreaToggle.checked;
+
+    if (useDrawn && drawPoints.length < 3) {
+      showToast('Za območje nariši vsaj tri točke.', 3000);
+      return;
+    }
+    if (!useDrawn && !pendingStart) return;
+
+    /* Območje iskanja opišemo enkrat — kot filter za Overpass in kot žrebalnik
+       naključne točke — da je nadaljnji potek enak za krog in narisan poligon. */
+    var areaFilter, pickRandom, slow;
+    if (useDrawn) {
+      var poly = drawPoints.slice();
+      areaFilter = polyFilter(poly);
+      pickRandom = function () { return randomPointInPolygon(poly); };
+      slow = true;
+    } else {
+      var radius = parseInt(radiusSlider.value, 10);
+      var start = pendingStart;
+      areaFilter = 'around:' + radius + ',' + start[0] + ',' + start[1];
+      pickRandom = function () { return randomPointInCircle(start[0], start[1], radius); };
+      slow = radius > 20000;
+    }
 
     if (pickMode() === 'marked') {
       var token = radiusStepToken;
       btnRadiusConfirm.disabled = true;
-      btnRadiusConfirm.textContent = radius > 20000 ? 'Iščem (lahko traja do 30 s) …' : 'Iščem …';
-      queryMarkedPoint(start[0], start[1], radius).then(function (found) {
+      btnRadiusConfirm.textContent = slow ? 'Iščem (lahko traja do 30 s) …' : 'Iščem …';
+      queryMarkedPoint(areaFilter).then(function (found) {
         btnRadiusConfirm.disabled = false;
         btnRadiusConfirm.textContent = 'Potrdi';
         if (token !== radiusStepToken) return; // preklicano medtem
+        var fallback = pickRandom();
         endRadiusStep();
         if (found.status === 'ok') {
           showResult([found.lat, found.lng], found.name);
+        } else if (!fallback) {
+          showToast('V tem območju ni bilo mogoče izbrati točke.', 3500);
         } else if (found.status === 'empty') {
-          showToast('Ni vrhov v tem radiju, izbrana naključna točka.', 3500);
-          showResult(randomPointInCircle(start[0], start[1], radius));
+          showToast('Ni vrhov v tem območju, izbrana naključna točka.', 3500);
+          showResult(fallback);
         } else {
           showToast('Iskanje vrhov ni uspelo, izbrana naključna točka.', 3500);
-          showResult(randomPointInCircle(start[0], start[1], radius));
+          showResult(fallback);
         }
       });
       return;
     }
 
-    var point = randomPointInCircle(start[0], start[1], radius);
+    var point = pickRandom();
     endRadiusStep();
+    if (!point) {
+      showToast('Območje je preozko — nariši ga malo širše.', 3500);
+      return;
+    }
     showResult(point);
   });
 

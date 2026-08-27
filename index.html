@@ -62,13 +62,15 @@
 </div>
 
 <div id="radiusPanel" class="radius-panel" hidden>
-  <div class="row">
-    <strong>Radij okoli izhodišča</strong>
-    <span id="radiusValue">5 km</span>
-  </div>
-  <input id="radiusSlider" type="range" min="200" max="100000" step="100" value="5000">
+  <div id="radiusControls">
+    <div class="row">
+      <strong>Radij okoli izhodišča</strong>
+      <span id="radiusValue">5 km</span>
+    </div>
+    <input id="radiusSlider" type="range" min="200" max="100000" step="100" value="5000">
 
-  <div id="radiusPresets" class="radius-presets"></div>
+    <div id="radiusPresets" class="radius-presets"></div>
+  </div>
 
   <div id="pickModeGroup" class="pick-mode-group">
     <label class="pick-mode-row">
@@ -89,6 +91,27 @@
       </svg>
       <span>Izberi vrh</span>
     </label>
+  </div>
+
+  <hr class="panel-divider">
+
+  <label class="pick-mode-row draw-toggle-row">
+    <input type="checkbox" id="drawAreaToggle">
+    <span class="pick-mode-check" aria-hidden="true"></span>
+    <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <path d="M4 15.5 9 6l4.5 5.5L19 8v9.5H4Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" stroke-dasharray="3 2.5"/>
+      <circle cx="9" cy="6" r="1.6" fill="currentColor"/>
+      <circle cx="19" cy="8" r="1.6" fill="currentColor"/>
+    </svg>
+    <span>Sam izberi območje</span>
+  </label>
+
+  <div id="drawStatus" class="draw-status" hidden>
+    <span id="drawCount">Klikaj po zemljevidu</span>
+    <span class="draw-status-actions">
+      <button id="btnDrawUndo" type="button">Nazaj</button>
+      <button id="btnDrawClear" type="button">Počisti</button>
+    </span>
   </div>
 
   <div class="radius-actions">
