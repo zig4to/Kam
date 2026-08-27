@@ -1,0 +1,145 @@
+:root {
+  --bg-dark: #12151b;
+  --bg-card: #1b2029;
+  --accent-blue: #38bdf8;
+  --accent-teal: #0f766e;
+  --accent-amber: #f59e0b;
+  --text: #f3f5f8;
+  --text-dim: #9aa4b2;
+}
+
+html, body { margin: 0; padding: 0; height: 100%; background: var(--bg-dark); }
+body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+
+#app { display: flex; flex-direction: column; height: 100%; }
+
+#topbar {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  padding: 10px 12px;
+  background: var(--bg-dark);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  position: relative;
+  z-index: 1000;
+}
+
+#map { flex: 1 1 auto; min-height: 0; }
+
+.btn-compass {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: linear-gradient(135deg, var(--accent-blue), var(--accent-teal));
+  color: #fff;
+  border: none;
+  border-radius: 999px;
+  padding: 9px 18px 9px 12px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(56, 189, 248, 0.35);
+  transition: transform 0.15s ease;
+}
+.btn-compass:active { transform: scale(0.96); }
+.btn-compass svg { width: 22px; height: 22px; flex-shrink: 0; }
+
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(8, 10, 14, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s ease;
+}
+.overlay.open { opacity: 1; pointer-events: auto; }
+
+.card {
+  background: var(--bg-card);
+  color: var(--text);
+  border-radius: 16px;
+  padding: 20px;
+  width: min(340px, 90vw);
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+}
+.card h2 { margin: 0 0 4px; font-size: 19px; }
+.card p.sub { margin: 0 0 16px; color: var(--text-dim); font-size: 13px; }
+
+.option-btn {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: var(--text);
+  border-radius: 12px;
+  padding: 12px 14px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  margin-bottom: 10px;
+  text-align: left;
+  box-sizing: border-box;
+}
+.option-btn:hover { background: rgba(255, 255, 255, 0.09); }
+.option-btn svg { width: 24px; height: 24px; flex-shrink: 0; color: var(--accent-blue); }
+
+.hint-toast {
+  position: fixed;
+  top: 74px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--bg-card);
+  color: var(--text);
+  padding: 10px 18px;
+  border-radius: 999px;
+  font-size: 13px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
+  z-index: 1500;
+}
+
+.radius-panel {
+  position: fixed;
+  left: 50%;
+  bottom: 16px;
+  transform: translateX(-50%);
+  background: var(--bg-card);
+  color: var(--text);
+  border-radius: 16px;
+  padding: 16px 18px;
+  width: min(360px, 92vw);
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+  z-index: 1600;
+  box-sizing: border-box;
+}
+.radius-panel .row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 14px;
+  margin-bottom: 4px;
+}
+.radius-panel input[type="range"] {
+  width: 100%;
+  accent-color: var(--accent-blue);
+  margin: 8px 0 14px;
+}
+
+.radius-actions { display: flex; gap: 10px; }
+.btn-secondary, .btn-primary {
+  flex: 1;
+  border: none;
+  border-radius: 10px;
+  padding: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.btn-secondary { background: rgba(255, 255, 255, 0.08); color: var(--text); }
+.btn-primary { background: linear-gradient(135deg, var(--accent-blue), var(--accent-teal)); color: #fff; }
