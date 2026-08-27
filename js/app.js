@@ -184,9 +184,9 @@
   /* Ena poizvedba na Overpass. Odjemalčev rok (35 s) je namenoma nad
      strežnikovim ([timeout:25] + režijski stroški), da ne prekinemo zahteve,
      ki bi čez trenutek uspela — deluje le kot varovalka proti pravemu obvisu. */
-  function overpassRequest(query) {
+  function overpassRequest(query, timeoutMs) {
     var controller = new AbortController();
-    var timer = setTimeout(function () { controller.abort(); }, 35000);
+    var timer = setTimeout(function () { controller.abort(); }, timeoutMs || 35000);
     return fetch(OVERPASS_URL, {
       method: 'POST',
       body: 'data=' + encodeURIComponent(query),
@@ -244,7 +244,7 @@
     if (resultMarker) map.removeLayer(resultMarker);
     resultMarker = L.marker(point, { icon: resultIcon }).addTo(map);
     map.flyTo(point, 14);
-    openResultPopup(point[0], point[1]);
+    openResultPopup(point[0], point[1], name);
     if (name) showToast('Izbrano: ' + name, 3000);
   }
 
@@ -316,7 +316,31 @@
     });
   }
 
-  /* Sestavi 3x3 mrežo ploščic in izreže sličico, poravnano na izbrano točko. */
+  /* Nariše pin (kapljica s konico v točki) — enaka oblika in barva kot
+     označevalec rezultata na zemljevidu, da je sličica takoj prepoznavna. */
+  function drawPin(ctx, x, y) {
+    var r = 7.5, cy = y - 14;
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(x, cy, r, 0.7 * Math.PI, 0.3 * Math.PI, false);
+    ctx.lineTo(x, y);
+    ctx.closePath();
+    ctx.fillStyle = '#f59e0b';
+    ctx.fill();
+    ctx.lineWidth = 2;
+    ctx.lineJoin = 'round';
+    ctx.strokeStyle = '#12151b';
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(x, cy, 2.8, 0, 2 * Math.PI);
+    ctx.fillStyle = '#12151b';
+    ctx.fill();
+    ctx.restore();
+  }
+
+  /* Sestavi 3x3 mrežo ploščic, izreže sličico okoli izbrane točke in nanjo
+     nariše pin. Izrez je pri robu sveta lahko zamaknjen (clamp), zato pin
+     položimo na dejanski odmik točke znotraj izreza, ne kar na sredino. */
   function makeThumbnail(lat, lng) {
     var p = deg2num(lat, lng, THUMB_ZOOM);
     var tx0 = Math.floor(p.x) - 1, ty0 = Math.floor(p.y) - 1;
@@ -342,17 +366,58 @@
 
       var out = document.createElement('canvas');
       out.width = THUMB_W; out.height = THUMB_H;
-      out.getContext('2d').drawImage(big, sx, sy, THUMB_W, THUMB_H, 0, 0, THUMB_W, THUMB_H);
+      var octx = out.getContext('2d');
+      octx.drawImage(big, sx, sy, THUMB_W, THUMB_H, 0, 0, THUMB_W, THUMB_H);
+      drawPin(octx, localX - sx, localY - sy);
       try { return out.toDataURL('image/jpeg', 0.75); }
       catch (e) { return null; }
     });
   }
 
+  /* Razdalja v metrih (ekvirektangularna aproksimacija — na teh razdaljah
+     povsem zadošča in je bistveno cenejša od haversine). */
+  function distanceMeters(lat1, lng1, lat2, lng2) {
+    var dLat = (lat2 - lat1) * 111320;
+    var dLng = (lng2 - lng1) * 111320 * Math.cos((lat1 + lat2) / 2 * Math.PI / 180);
+    return Math.sqrt(dLat * dLat + dLng * dLng);
+  }
+
+  /* Poišče najbližji poimenovani vrh ali kraj kot opis točke. Uporabi se le
+     za naključno vržene točke — pri izbranem vrhu ime že poznamo.
+     Rok je kratek (8 s): opis je le prijeten dodatek, shranjevanje pa se
+     zaradi njega ne sme zatakniti — brez opisa se točka shrani takoj. */
+  function describePoint(lat, lng) {
+    var q = '[out:json][timeout:8];(' +
+      'node["natural"="peak"]["name"](around:5000,' + lat + ',' + lng + ');' +
+      'node["place"~"^(city|town|village|hamlet)$"]["name"](around:5000,' + lat + ',' + lng + ');' +
+      ');out body 80;';
+
+    return overpassRequest(q, 8000).then(function (data) {
+      var best = null, bestDist = Infinity;
+      (data.elements || []).forEach(function (el) {
+        if (!el.tags || !el.tags.name || el.lat == null) return;
+        var d = distanceMeters(lat, lng, el.lat, el.lon);
+        if (d < bestDist) { bestDist = d; best = el; }
+      });
+      if (!best) return null;
+      var ele = parseFloat(best.tags.ele);
+      var name = best.tags.name + (isFinite(ele) ? ' (' + Math.round(ele) + ' m)' : '');
+      return bestDist < 150 ? name : name + ' — ' + formatRadius(Math.round(bestDist));
+    }).catch(function () { return null; });
+  }
+
   // -------------------------------------------------- rezultat: popup okno
-  function buildResultPopup(lat, lng) {
+  function buildResultPopup(lat, lng, knownName) {
     var text = lat.toFixed(5) + ', ' + lng.toFixed(5);
     var wrap = document.createElement('div');
     wrap.className = 'result-popup';
+
+    if (knownName) {
+      var title = document.createElement('div');
+      title.className = 'popup-title';
+      title.textContent = knownName;
+      wrap.appendChild(title);
+    }
 
     var coords = document.createElement('div');
     coords.className = 'popup-coords';
@@ -380,9 +445,12 @@
     saveBtn.addEventListener('click', function () {
       saveBtn.disabled = true;
       saveBtn.textContent = 'Shranjujem …';
-      makeThumbnail(lat, lng).then(function (thumb) {
+      /* Pri izbranem vrhu ime že imamo; pri naključni točki poiščemo najbližji
+         vrh ali kraj. Če opis ne uspe, točko vseeno shranimo — le brez opisa. */
+      var namePromise = knownName ? Promise.resolve(knownName) : describePoint(lat, lng);
+      Promise.all([makeThumbnail(lat, lng), namePromise]).then(function (r) {
         var list = loadSaved();
-        list.push({ id: Date.now(), lat: lat, lng: lng, thumb: thumb, created: Date.now() });
+        list.push({ id: Date.now(), lat: lat, lng: lng, thumb: r[0], name: r[1] || null, created: Date.now() });
         var ok = persistSaved(list);
         renderSavedGrid();
         saveBtn.disabled = false;
@@ -395,8 +463,8 @@
     return wrap;
   }
 
-  function openResultPopup(lat, lng) {
-    resultMarker.bindPopup(buildResultPopup(lat, lng), { offset: [0, -28] }).openPopup();
+  function openResultPopup(lat, lng, name) {
+    resultMarker.bindPopup(buildResultPopup(lat, lng, name), { offset: [0, -28] }).openPopup();
   }
 
   // ------------------------------------------------- shranjene točke: seznam
@@ -428,10 +496,22 @@
       var body = document.createElement('div');
       body.className = 'saved-card-body';
 
+      var textWrap = document.createElement('div');
+      textWrap.className = 'saved-card-text';
+
+      var title = document.createElement('div');
+      title.className = 'saved-card-name';
+      title.textContent = rec.name || 'Neimenovana točka';
+      if (!rec.name) title.classList.add('is-unnamed');
+      title.title = title.textContent;
+      textWrap.appendChild(title);
+
       var coords = document.createElement('div');
       coords.className = 'saved-card-coords';
       coords.textContent = rec.lat.toFixed(5) + ', ' + rec.lng.toFixed(5);
-      body.appendChild(coords);
+      textWrap.appendChild(coords);
+
+      body.appendChild(textWrap);
 
       var del = document.createElement('button');
       del.className = 'saved-card-delete';
@@ -452,7 +532,7 @@
         map.flyTo([rec.lat, rec.lng], 14);
         if (resultMarker) map.removeLayer(resultMarker);
         resultMarker = L.marker([rec.lat, rec.lng], { icon: resultIcon }).addTo(map);
-        openResultPopup(rec.lat, rec.lng);
+        openResultPopup(rec.lat, rec.lng, rec.name);
       });
 
       savedGrid.appendChild(card);
