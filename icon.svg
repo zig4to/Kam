@@ -3,6 +3,6 @@
   <circle cx="18.75" cy="6.875" r="2" fill="#f59e0b"/>
   <polygon points="5,19 10.75,8 15.25,19" fill="#f3f5f8"/>
   <polygon points="12,19 17.25,10.75 21,19" fill="#f3f5f8"/>
-  <polygon points="9,10.5 10.75,8 12.5,10.5" fill="#7dd3fc"/>
-  <polygon points="15.5,13 17.25,10.75 19,13" fill="#7dd3fc"/>
+  <polygon points="8.91,11.52 10.75,8 12.19,11.52" fill="#7dd3fc"/>
+  <polygon points="15.57,13.39 17.25,10.75 18.45,13.39" fill="#7dd3fc"/>
 </svg>

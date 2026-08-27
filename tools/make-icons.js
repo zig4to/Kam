@@ -109,14 +109,14 @@ function drawIcon(size, maskable) {
   for (i = 0; i < peakB.length; i += 2) polyB.push(X(peakB[i]), Y(peakB[i + 1]));
   bmp.fill(function (x, y) { return insidePolygon(x, y, polyB); }, PEAK);
 
-  // sneg na vrhu A
-  var snowA = [72, 84, 86, 64, 100, 84];
+  // sneg na vrhu A — pomanjšan trikotnik po istih robovih kot vrh A, da ne štrli čez rob
+  var snowA = [71.3, 92.2, 86, 64, 97.5, 92.2];
   var polySA = [];
   for (i = 0; i < snowA.length; i += 2) polySA.push(X(snowA[i]), Y(snowA[i + 1]));
   bmp.fill(function (x, y) { return insidePolygon(x, y, polySA); }, SNOW);
 
-  // sneg na vrhu B
-  var snowB = [124, 104, 138, 86, 152, 104];
+  // sneg na vrhu B — pomanjšan trikotnik po istih robovih kot vrh B
+  var snowB = [124.6, 107.1, 138, 86, 147.6, 107.1];
   var polySB = [];
   for (i = 0; i < snowB.length; i += 2) polySB.push(X(snowB[i]), Y(snowB[i + 1]));
   bmp.fill(function (x, y) { return insidePolygon(x, y, polySB); }, SNOW);
