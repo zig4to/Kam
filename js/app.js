@@ -19,6 +19,7 @@
   var btnSaved = document.getElementById('btnSaved');
   var btnCurrentLocation = document.getElementById('btnCurrentLocation');
   var btnPickOnMap = document.getElementById('btnPickOnMap');
+  var btnPickArea = document.getElementById('btnPickArea');
   var btnStartCancel = document.getElementById('btnStartCancel');
   var hintToast = document.getElementById('hintToast');
   var radiusPanel = document.getElementById('radiusPanel');
@@ -125,6 +126,17 @@
       hideToast();
       beginRadiusStep([e.latlng.lat, e.latlng.lng]);
     });
+  });
+
+  /* Tretja opcija preskoči izhodišče in radij ter gre naravnost v risanje
+     območja — enak način, kot ga sicer vklopi kljukica "Sam izberi območje"
+     v panelu, le da tu do njega pridemo brez vmesnega koraka. */
+  btnPickArea.addEventListener('click', function () {
+    closeStartOverlay();
+    pendingStart = null;
+    drawAreaToggle.checked = true;
+    radiusPanel.hidden = false;
+    enterDrawMode();
   });
 
   // --------------------------------------------------------- korak 2: radij
@@ -299,7 +311,16 @@
   }
 
   drawAreaToggle.addEventListener('change', function () {
-    if (drawAreaToggle.checked) enterDrawMode(); else exitDrawMode();
+    if (drawAreaToggle.checked) {
+      enterDrawMode();
+    } else if (!pendingStart) {
+      /* Sem smo prišli neposredno prek "Sam izberi območje" v prvem oknu,
+         zato ni izhodišča za krog — ostanemo v risanju. */
+      drawAreaToggle.checked = true;
+      showToast('Za radij okoli izhodišča prekliči in izberi točko znova.', 3200);
+    } else {
+      exitDrawMode();
+    }
   });
 
   btnDrawUndo.addEventListener('click', function () {
