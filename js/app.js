@@ -1,11 +1,66 @@
 (function () {
-  var map = L.map('map', { zoomControl: true }).setView([46.05, 14.5], 9); // Ljubljana / Slovenija
+  /* Zemljevid pokriva večino zaslona, zato bi sicer požrl vse drsenje strani.
+     Zato "sodelovalne poteze": kolešček in en prst pripadata strani, zemljevid
+     pa se odzove le na Ctrl+kolešček oz. dva prsta. */
+  var mapEl = document.getElementById('map');
+  var isTouch = !!(window.matchMedia && window.matchMedia('(pointer: coarse)').matches);
+
+  var map = L.map('map', { zoomControl: true, scrollWheelZoom: false })
+    .setView([46.05, 14.5], 9); // Ljubljana / Slovenija
+
+  if (isTouch) map.dragging.disable();   // en prst drsi po strani
 
   L.tileLayer('https://tiles.bergfex.at/styles/bergfex-osm/{z}/{x}/{y}.jpg', {
     maxZoom: 18,
     minZoom: 5,
     attribution: '&copy; <a href="https://www.bergfex.at">Bergfex</a>, OpenStreetMap contributors'
   }).addTo(map);
+
+  // ------------------------------------------------------- sodelovalne poteze
+  var gestureHint = document.getElementById('gestureHint');
+  var gestureTimer = null;
+
+  function showGestureHint(text) {
+    if (gestureHint.textContent !== text) gestureHint.textContent = text;
+    gestureHint.classList.add('show');
+    clearTimeout(gestureTimer);
+    gestureTimer = setTimeout(function () { gestureHint.classList.remove('show'); }, 1400);
+  }
+
+  function hideGestureHint() {
+    clearTimeout(gestureTimer);
+    gestureHint.classList.remove('show');
+  }
+
+  /* Namizje: brez Ctrl kolešček drsi po strani, s Ctrl pa približa zemljevid
+     okoli kazalca. preventDefault je nujen, ker bi Ctrl+kolešček sicer
+     sprožil povečavo celotne strani v brskalniku. */
+  mapEl.addEventListener('wheel', function (e) {
+    if (!e.ctrlKey) {
+      if (!isTouch) showGestureHint('Za povečavo pridrži Ctrl');
+      return;
+    }
+    e.preventDefault();
+    hideGestureHint();
+    map.setZoomAround(map.mouseEventToContainerPoint(e), map.getZoom() + (e.deltaY < 0 ? 1 : -1));
+  }, { passive: false });
+
+  /* Telefon: dva prsta premikata in približujeta zemljevid (za oboje poskrbi
+     Leafletov touchZoom, ki sledi tudi sredini med prstoma), en prst pa drsi
+     po strani. Vlečenje z enim prstom vklopimo le, dokler sta prsta dva. */
+  if (isTouch) {
+    mapEl.addEventListener('touchstart', function (e) {
+      if (e.touches.length > 1) { hideGestureHint(); map.dragging.enable(); }
+    }, { passive: true });
+
+    mapEl.addEventListener('touchmove', function (e) {
+      if (e.touches.length === 1) showGestureHint('Za premik zemljevida uporabi dva prsta');
+    }, { passive: true });
+
+    mapEl.addEventListener('touchend', function (e) {
+      if (e.touches.length < 2) map.dragging.disable();
+    }, { passive: true });
+  }
 
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', function () {
