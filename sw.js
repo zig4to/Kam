@@ -1,10 +1,10 @@
 /* Predpomnilnik lupine aplikacije, da deluje tudi brez povezave.
    Ploščice zemljevida (tuja domena) gredo mimo predpomnilnika naravnost v omrežje.
    Ob spremembi datotek povečaj VERSION. */
-var VERSION = 'kam-v57';
+var VERSION = 'kam-v58';
 var SHELL = [
   './', './index.html', './style.css', './icon.svg', './manifest.json',
-  './js/app.js',
+  './js/app.js', './install-promo.js',
   './icons/icon-192.png', './icons/icon-512.png',
   './icons/icon-maskable-192.png', './icons/icon-maskable-512.png',
   './icons/apple-touch-icon.png'
