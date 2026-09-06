@@ -1384,7 +1384,413 @@
     }, closeSavedMountainsDrawer, { kind: 'kam-gorovje', prefix: 'gorovje' });
   }
 
+  // ============================================================ naslovna stran
+  /* Pokaže se ob vsakem odprtju čez ves zaslon. "Pojdi naključno" jo skrije in
+     odkrije zemljevid, gumb "domov" (zgoraj levo) jo prikliče nazaj. Zemljevid
+     se inicializira za njo, zato ob skritju kličemo map.invalidateSize(). */
+  var landingOverlay = document.getElementById('landingOverlay');
+  var btnLandingRandom = document.getElementById('btnLandingRandom');
+  var btnLandingWishlist = document.getElementById('btnLandingWishlist');
+  var btnHome = document.getElementById('btnHome');
+
+  function showLanding() { landingOverlay.classList.remove('hidden'); }
+  function hideLanding() {
+    if (landingOverlay.classList.contains('hidden')) return;
+    landingOverlay.classList.add('hidden');
+    map.invalidateSize();
+  }
+
+  btnLandingRandom.addEventListener('click', hideLanding);
+  btnHome.addEventListener('click', showLanding);
+
+  // ============================================================ "Kam želim"
+  var WISHLIST_STORAGE_KEY = 'kam-wishlist';
+  var SLO_REGIONS = ['Gorenjska', 'Štajerska', 'Koroška', 'Primorska', 'Notranjska',
+    'Dolenjska', 'Bela krajina', 'Prekmurje', 'Prlekija', 'Zasavje', 'Osrednja Slovenija'];
+  var WL_TYPES = [
+    { key: 'slap', label: 'Slap' },
+    { key: 'jezero', label: 'Jezero' },
+    { key: 'soteska', label: 'Soteska' },
+    { key: 'vrh', label: 'Vrh' }
+  ];
+
+  function loadWishlist() {
+    try { return JSON.parse(localStorage.getItem(WISHLIST_STORAGE_KEY)) || []; }
+    catch (e) { return []; }
+  }
+  function persistWishlist(list) {
+    try { localStorage.setItem(WISHLIST_STORAGE_KEY, JSON.stringify(list)); return true; }
+    catch (e) { return false; }
+  }
+
+  function isNum(x) { return typeof x === 'number' && isFinite(x); }
+
+  var wishlistSection = document.getElementById('wishlistSection');
+  var wishlistBackdrop = document.getElementById('wishlistBackdrop');
+  var btnWishlistClose = document.getElementById('btnWishlistClose');
+  var menuItemWishlist = document.getElementById('menuItemWishlist');
+  var wishlistBrowse = document.getElementById('wishlistBrowse');
+  var wishlistFormView = document.getElementById('wishlistFormView');
+  var wishlistFormTitle = document.getElementById('wishlistFormTitle');
+  var wishlistTabs = document.getElementById('wishlistTabs');
+  var wishlistSubtabs = document.getElementById('wishlistSubtabs');
+  var wishlistList = document.getElementById('wishlistList');
+  var wishlistEmpty = document.getElementById('wishlistEmpty');
+  var btnAddDest = document.getElementById('btnAddDest');
+  var btnImportWishlist = document.getElementById('btnImportWishlist');
+  var btnExportWishlist = document.getElementById('btnExportWishlist');
+  var importWishlistFile = document.getElementById('importWishlistFile');
+  var destName = document.getElementById('destName');
+  var destCountry = document.getElementById('destCountry');
+  var destRegion = document.getElementById('destRegion');
+  var destCoords = document.getElementById('destCoords');
+  var destTypes = document.getElementById('destTypes');
+  var regionPresets = document.getElementById('regionPresets');
+  var btnDestCancel = document.getElementById('btnDestCancel');
+  var btnDestSave = document.getElementById('btnDestSave');
+
+  var wlActiveCountry = 'Slovenija';
+  var wlActiveRegion = SLO_REGIONS[0];
+  var wlEditId = null;
+
+  // Predal zdrsne z desne čez zemljevid/naslovnico — isti vzorec kot drugi seznami.
+  function openWishlistDrawer() {
+    wishlistFormView.hidden = true;
+    wishlistBrowse.hidden = false;
+    wishlistSection.classList.add('open');
+    wishlistBackdrop.classList.add('open');
+    renderWishlist();
+  }
+  function closeWishlistDrawer() {
+    wishlistSection.classList.remove('open');
+    wishlistBackdrop.classList.remove('open');
+  }
+
+  btnWishlistClose.addEventListener('click', closeWishlistDrawer);
+  wishlistBackdrop.addEventListener('click', closeWishlistDrawer);
+  btnLandingWishlist.addEventListener('click', openWishlistDrawer);
+  menuItemWishlist.addEventListener('click', function () {
+    closeMenu();
+    openWishlistDrawer();
+  });
+
+  /* Države = "Slovenija" + vse iz zapisov. Pokrajine za Slovenijo = fiksni
+     seznam SLO_REGIONS + morebitne dodatne iz zapisov; za druge države samo
+     tiste iz zapisov. */
+  function wlCountries(list) {
+    var out = ['Slovenija'];
+    list.forEach(function (r) {
+      if (r.country && out.indexOf(r.country) === -1) out.push(r.country);
+    });
+    return out;
+  }
+  function wlRegions(list, country) {
+    var out = country === 'Slovenija' ? SLO_REGIONS.slice() : [];
+    list.forEach(function (r) {
+      if (r.country === country && r.region && out.indexOf(r.region) === -1) out.push(r.region);
+    });
+    return out;
+  }
+
+  function wlPillRow(container, values, active, onPick) {
+    container.innerHTML = '';
+    values.forEach(function (val, i) {
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.className = (container === wishlistTabs ? 'wl-tab' : 'wl-subtab') + (val === active ? ' active' : '');
+      b.textContent = val;
+      if (typeof onPick.count === 'function') {
+        var n = onPick.count(val);
+        if (n) {
+          var s = document.createElement('span');
+          s.className = 'wl-tab-count';
+          s.textContent = ' ' + n;
+          b.appendChild(s);
+        }
+      }
+      b.addEventListener('click', function () { onPick(val); });
+      container.appendChild(b);
+    });
+  }
+
+  function buildWlRow(rec) {
+    var row = document.createElement('div');
+    row.className = 'area-row wl-row' + (rec.visited ? ' visited' : '');
+
+    var main = document.createElement('div');
+    main.className = 'wl-row-main';
+
+    var chk = document.createElement('button');
+    chk.type = 'button';
+    chk.className = 'wl-check' + (rec.visited ? ' on' : '');
+    chk.title = rec.visited ? 'Označi kot neobiskano' : 'Označi kot obiskano';
+    chk.addEventListener('click', function (e) {
+      e.stopPropagation();
+      var l = loadWishlist();
+      var it = l.find(function (x) { return x.id === rec.id; });
+      if (it) it.visited = !it.visited;
+      persistWishlist(l);
+      renderWishlist();
+    });
+    main.appendChild(chk);
+
+    var textWrap = document.createElement('div');
+    textWrap.className = 'area-row-text';
+
+    var title = document.createElement('div');
+    title.className = 'area-row-name';
+    title.textContent = rec.name;
+    title.title = rec.name;
+    textWrap.appendChild(title);
+
+    if (rec.types && rec.types.length) {
+      var badges = document.createElement('div');
+      badges.className = 'wl-badges';
+      rec.types.forEach(function (t) {
+        var meta = WL_TYPES.filter(function (x) { return x.key === t; })[0];
+        var b = document.createElement('span');
+        b.className = 'wl-type-badge';
+        b.textContent = meta ? meta.label : t;
+        badges.appendChild(b);
+      });
+      textWrap.appendChild(badges);
+    }
+
+    var hasCoords = isNum(rec.lat) && isNum(rec.lng);
+    if (hasCoords) {
+      var co = document.createElement('div');
+      co.className = 'wl-row-coords';
+      co.textContent = rec.lat.toFixed(4) + ', ' + rec.lng.toFixed(4);
+      textWrap.appendChild(co);
+    }
+
+    main.appendChild(textWrap);
+    row.appendChild(main);
+
+    var actions = document.createElement('div');
+    actions.className = 'area-row-actions';
+
+    var edit = document.createElement('button');
+    edit.className = 'saved-card-delete area-row-rename';
+    edit.type = 'button';
+    edit.title = 'Uredi';
+    edit.appendChild(renamePin());
+    edit.addEventListener('click', function (e) {
+      e.stopPropagation();
+      openWishlistForm(rec);
+    });
+    actions.appendChild(edit);
+
+    var del = document.createElement('button');
+    del.className = 'saved-card-delete';
+    del.type = 'button';
+    del.title = 'Izbriši';
+    del.appendChild(deletePin());
+    del.addEventListener('click', function (e) {
+      e.stopPropagation();
+      persistWishlist(loadWishlist().filter(function (x) { return x.id !== rec.id; }));
+      renderWishlist();
+    });
+    actions.appendChild(del);
+    row.appendChild(actions);
+
+    row.addEventListener('click', function () {
+      if (!hasCoords) { showToast('Ni koordinat za to destinacijo.', 2500); return; }
+      closeWishlistDrawer();
+      hideLanding();
+      map.flyTo([rec.lat, rec.lng], 13);
+      if (resultMarker) map.removeLayer(resultMarker);
+      resultMarker = L.marker([rec.lat, rec.lng], { icon: resultIcon }).addTo(map);
+      openResultPopup(rec.lat, rec.lng, rec.name);
+    });
+
+    return row;
+  }
+
+  function renderWishlist() {
+    var list = loadWishlist();
+    var countries = wlCountries(list);
+    if (countries.indexOf(wlActiveCountry) === -1) wlActiveCountry = countries[0];
+    var regions = wlRegions(list, wlActiveCountry);
+    if (regions.indexOf(wlActiveRegion) === -1) wlActiveRegion = regions[0] || null;
+
+    var hasAny = list.length > 0;
+    wishlistEmpty.hidden = hasAny;
+    wishlistTabs.hidden = !hasAny;
+    wishlistSubtabs.hidden = !hasAny;
+
+    var pickCountry = function (c) { wlActiveCountry = c; wlActiveRegion = null; renderWishlist(); };
+    pickCountry.count = function (c) { return list.filter(function (r) { return r.country === c; }).length; };
+    wlPillRow(wishlistTabs, countries, wlActiveCountry, pickCountry);
+
+    var pickRegion = function (rg) { wlActiveRegion = rg; renderWishlist(); };
+    pickRegion.count = function (rg) {
+      return list.filter(function (r) { return r.country === wlActiveCountry && r.region === rg; }).length;
+    };
+    wlPillRow(wishlistSubtabs, regions, wlActiveRegion, pickRegion);
+
+    wishlistList.innerHTML = '';
+    var rows = list.filter(function (r) {
+      return r.country === wlActiveCountry && r.region === wlActiveRegion;
+    });
+    var todo = rows.filter(function (r) { return !r.visited; });
+    var done = rows.filter(function (r) { return r.visited; });
+
+    todo.forEach(function (rec) { wishlistList.appendChild(buildWlRow(rec)); });
+    if (done.length) {
+      var h = document.createElement('div');
+      h.className = 'wl-visited-head';
+      h.textContent = 'Obiskano';
+      wishlistList.appendChild(h);
+      done.forEach(function (rec) { wishlistList.appendChild(buildWlRow(rec)); });
+    }
+    if (hasAny && !rows.length) {
+      var note = document.createElement('p');
+      note.className = 'saved-empty';
+      note.textContent = 'V tej pokrajini ni destinacij.';
+      wishlistList.appendChild(note);
+    }
+  }
+
+  // ------------------------------------------------ obrazec za dodajanje/urejanje
+  WL_TYPES.forEach(function (t) {
+    var label = document.createElement('label');
+    label.className = 'pick-mode-row';
+    var input = document.createElement('input');
+    input.type = 'checkbox';
+    input.value = t.key;
+    var check = document.createElement('span');
+    check.className = 'pick-mode-check';
+    check.setAttribute('aria-hidden', 'true');
+    var span = document.createElement('span');
+    span.textContent = t.label;
+    label.appendChild(input);
+    label.appendChild(check);
+    label.appendChild(span);
+    destTypes.appendChild(label);
+  });
+  SLO_REGIONS.forEach(function (rg) {
+    var o = document.createElement('option');
+    o.value = rg;
+    regionPresets.appendChild(o);
+  });
+
+  function openWishlistForm(rec) {
+    wlEditId = rec ? rec.id : null;
+    wishlistFormTitle.textContent = rec ? 'Uredi destinacijo' : 'Nova destinacija';
+    destName.value = rec ? rec.name : '';
+    destCountry.value = rec ? (rec.country || 'Slovenija') : 'Slovenija';
+    destRegion.value = rec ? (rec.region || '') : (wlActiveRegion || '');
+    destCoords.value = (rec && isNum(rec.lat) && isNum(rec.lng)) ? (rec.lat + ', ' + rec.lng) : '';
+    var chosen = (rec && rec.types) ? rec.types : [];
+    Array.prototype.forEach.call(destTypes.querySelectorAll('input'), function (i) {
+      i.checked = chosen.indexOf(i.value) !== -1;
+    });
+    wishlistBrowse.hidden = true;
+    wishlistFormView.hidden = false;
+  }
+  function closeWishlistForm() {
+    wishlistFormView.hidden = true;
+    wishlistBrowse.hidden = false;
+    renderWishlist();
+  }
+  function saveWishlistForm() {
+    var name = destName.value.trim();
+    var types = Array.prototype.map.call(destTypes.querySelectorAll('input:checked'), function (i) { return i.value; });
+    if (!name) { showToast('Vpiši ime destinacije.', 2500); return; }
+    if (!types.length) { showToast('Izberi vsaj eno vrsto.', 2500); return; }
+
+    var country = destCountry.value.trim() || 'Slovenija';
+    var region = destRegion.value.trim() || (country === 'Slovenija' ? SLO_REGIONS[0] : 'Drugo');
+
+    var lat = null, lng = null;
+    var parts = destCoords.value.split(',');
+    if (parts.length === 2) {
+      var a = parseFloat(parts[0]), b = parseFloat(parts[1]);
+      if (isFinite(a) && isFinite(b)) { lat = a; lng = b; }
+    }
+
+    var list = loadWishlist();
+    if (wlEditId !== null) {
+      var it = list.find(function (x) { return x.id === wlEditId; });
+      if (it) {
+        it.name = name; it.country = country; it.region = region;
+        it.lat = lat; it.lng = lng; it.types = types;
+      }
+    } else {
+      list.push({
+        id: Date.now(), name: name, country: country, region: region,
+        lat: lat, lng: lng, types: types, visited: false, created: Date.now()
+      });
+    }
+    var ok = persistWishlist(list);
+    wlActiveCountry = country;
+    wlActiveRegion = region;
+    showToast(ok ? 'Destinacija shranjena' : 'Napaka pri shranjevanju', 2000);
+    closeWishlistForm();
+  }
+
+  btnAddDest.addEventListener('click', function () { openWishlistForm(null); });
+  btnDestCancel.addEventListener('click', closeWishlistForm);
+  btnDestSave.addEventListener('click', saveWishlistForm);
+
+  // ---------------------------------------------------------- izvoz / uvoz seznama
+  function exportWishlist() {
+    var payload = { kind: 'kam-seznam-zelja', version: 1, items: loadWishlist() };
+    var blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = 'seznam-zelja.json';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+  }
+  btnExportWishlist.addEventListener('click', exportWishlist);
+
+  btnImportWishlist.addEventListener('click', function () {
+    importWishlistFile.value = '';
+    importWishlistFile.click();
+  });
+  importWishlistFile.addEventListener('change', function () {
+    var file = importWishlistFile.files && importWishlistFile.files[0];
+    if (!file) return;
+    var reader = new FileReader();
+    reader.onload = function () {
+      var data;
+      try { data = JSON.parse(reader.result); }
+      catch (e) { showToast('Datoteka ni veljaven JSON.', 3000); return; }
+      var items = Array.isArray(data.items) ? data.items : (Array.isArray(data) ? data : []);
+      var valid = items.filter(function (it) {
+        return it && typeof it.name === 'string' && it.name.trim() &&
+          Array.isArray(it.types) && it.types.length;
+      });
+      if (!valid.length) { showToast('V datoteki ni veljavnih destinacij.', 3500); return; }
+      var list = loadWishlist();
+      valid.forEach(function (it, k) {
+        list.push({
+          id: Date.now() + k,
+          name: it.name.trim(),
+          country: (typeof it.country === 'string' && it.country.trim()) || 'Slovenija',
+          region: (typeof it.region === 'string' && it.region.trim()) || 'Drugo',
+          lat: isNum(it.lat) ? it.lat : null,
+          lng: isNum(it.lng) ? it.lng : null,
+          types: it.types.filter(function (t) { return typeof t === 'string'; }),
+          visited: !!it.visited,
+          created: it.created || (Date.now() + k)
+        });
+      });
+      var ok = persistWishlist(list);
+      renderWishlist();
+      showToast(ok ? ('Uvoženih destinacij: ' + valid.length) : 'Napaka pri uvozu', 2500);
+    };
+    reader.onerror = function () { showToast('Branje datoteke ni uspelo.', 3000); };
+    reader.readAsText(file);
+  });
+
   renderSavedGrid();
   renderSavedAreasGrid();
   renderSavedMountainsGrid();
+  renderWishlist();
 })();

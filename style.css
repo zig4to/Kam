@@ -575,3 +575,156 @@ body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
   margin: 10px 0 4px;
 }
 .area-name-input:focus { outline: none; border-color: var(--accent-blue); }
+
+/* ---------------------------------------------------------- naslovna stran */
+/* Poln zaslon čez vse ostalo; pokaže se ob vsakem odprtju. Zemljevid se
+   inicializira za njo — ob skritju kličemo map.invalidateSize(). */
+.landing-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  background: var(--bg-dark);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+.landing-overlay.hidden { display: none; }
+
+.landing-inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  width: min(340px, 84vw);
+}
+.landing-mark { color: var(--accent-blue); }
+.landing-mark svg { width: 56px; height: 56px; display: block; }
+.landing-title {
+  margin: 14px 0 4px;
+  font-size: 38px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  color: var(--text);
+}
+.landing-sub { margin: 0 0 26px; font-size: 14px; color: var(--text-dim); }
+.landing-btn {
+  width: 100%;
+  padding: 13px;
+  font-size: 15px;
+  flex: none;
+}
+.landing-btn + .landing-btn { margin-top: 10px; }
+
+/* Gumb "domov" zgoraj desno, tik levo od hamburger menija (levo zgoraj so
+   Leafletovi gumbi za povečavo). Enak videz kot .btn-menu. */
+.btn-home {
+  position: absolute;
+  right: 72px;
+  top: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  background: rgba(245, 158, 11, 0.72);
+  color: #12151b;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 50%;
+  cursor: pointer;
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.4);
+  transition: background 0.15s ease, transform 0.15s ease;
+}
+.btn-home:hover { background: rgba(245, 158, 11, 0.9); }
+.btn-home:active { transform: scale(0.96); }
+.btn-home svg { width: 19px; height: 19px; flex-shrink: 0; }
+
+@media (min-width: 640px) and (pointer: fine) {
+  .btn-home { width: 48px; height: 48px; right: 82px; }
+  .btn-home svg { width: 22px; height: 22px; }
+}
+
+/* ------------------------------------------------------------ Kam želim */
+.wl-tabs, .wl-subtabs {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  padding-bottom: 6px;
+  margin-bottom: 8px;
+  -webkit-overflow-scrolling: touch;
+}
+/* display: flex bi sicer prevladal nad privzetim [hidden] { display: none } */
+.wl-tabs[hidden], .wl-subtabs[hidden] { display: none; }
+.wl-subtabs { margin-bottom: 14px; }
+.wl-tab, .wl-subtab {
+  flex-shrink: 0;
+  border: 1.5px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text);
+  border-radius: 999px;
+  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.wl-tab:hover, .wl-subtab:hover { background: rgba(255, 255, 255, 0.09); }
+.wl-tab.active, .wl-subtab.active {
+  border-color: var(--accent-blue);
+  color: var(--accent-blue);
+  background: rgba(56, 189, 248, 0.1);
+}
+.wl-tab-count { opacity: 0.6; font-weight: 600; }
+
+.wl-visited-head {
+  font-size: 12px;
+  color: var(--text-dim);
+  margin: 16px 0 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+}
+
+.wl-row-main { display: flex; align-items: center; gap: 10px; min-width: 0; flex: 1; }
+.wl-check {
+  width: 20px;
+  height: 20px;
+  border-radius: 6px;
+  border: 1.5px solid rgba(255, 255, 255, 0.25);
+  background: none;
+  flex-shrink: 0;
+  position: relative;
+  cursor: pointer;
+  padding: 0;
+}
+.wl-check.on { border-color: var(--accent-blue); background: var(--accent-blue); }
+.wl-check.on::after {
+  content: "";
+  position: absolute;
+  left: 6px;
+  top: 2px;
+  width: 5px;
+  height: 10px;
+  border: solid #0b1622;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+.wl-row.visited .area-row-name { text-decoration: line-through; color: var(--text-dim); }
+.wl-row.visited { opacity: 0.75; }
+
+.wl-badges { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 3px; }
+.wl-type-badge {
+  font-size: 10px;
+  color: var(--text-dim);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 999px;
+  padding: 1px 7px;
+}
+.wl-row-coords { font-size: 11px; color: var(--text-dim); font-variant-numeric: tabular-nums; margin-top: 3px; }
+
+.wl-form .row { font-size: 14px; margin-bottom: 4px; }
+.wl-form .area-name-input { display: block; }
+.wl-form .ele-filter-label { margin-top: 12px; }
+.wl-types { display: flex; flex-direction: column; gap: 8px; margin: 8px 0 4px; }
+.wl-form .radius-actions { margin-top: 16px; }
