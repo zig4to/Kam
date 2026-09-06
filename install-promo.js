@@ -164,10 +164,6 @@
 
   window.InstallPromo = { run: run, afterLogin: run, _open: openModal };
 
-  // Samodejni sprožilec: prvih 5 odprtij aplikacije.
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", run);
-  } else {
-    run();
-  }
+  // Sprožilec (prvih 5 odprtij) požene js/auth.js prek InstallPromo.afterLogin()
+  // šele PO prijavi — da se okno ne prikaže čez prijavni zaslon.
 })();

@@ -16,6 +16,53 @@
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
+<section class="auth-screen" id="authScreen" hidden>
+  <div class="auth-card">
+    <div class="auth-icon" aria-hidden="true">
+      <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M12 22s7-7.5 7-12.5A7 7 0 1 0 5 9.5C5 14.5 12 22 12 22Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
+        <circle cx="12" cy="9.5" r="2.4" stroke="currentColor" stroke-width="1.6"/>
+      </svg>
+    </div>
+    <h1 class="auth-brand">Kam</h1>
+    <p class="auth-sub" id="authTitle">Prijava</p>
+    <form id="authForm" autocomplete="on">
+      <label class="field-label" for="authEmail">E-pošta</label>
+      <input id="authEmail" class="field-input" type="email" autocomplete="email" required>
+      <label class="field-label" for="authPassword">Geslo</label>
+      <input id="authPassword" class="field-input" type="password" autocomplete="current-password" minlength="6" required>
+      <button id="authForgot" class="auth-forgot" type="button">Pozabljeno geslo?</button>
+      <p class="auth-error" id="authError" role="alert"></p>
+      <p class="auth-note" id="authNote"></p>
+      <button id="authSubmit" class="btn-primary auth-submit" type="submit">Prijava</button>
+    </form>
+    <button id="authToggle" class="auth-toggle" type="button">Nimaš računa? Registracija</button>
+  </div>
+</section>
+
+<section class="auth-screen" id="recoveryScreen" hidden>
+  <div class="auth-card">
+    <div class="auth-icon" aria-hidden="true">
+      <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M12 22s7-7.5 7-12.5A7 7 0 1 0 5 9.5C5 14.5 12 22 12 22Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
+        <circle cx="12" cy="9.5" r="2.4" stroke="currentColor" stroke-width="1.6"/>
+      </svg>
+    </div>
+    <h1 class="auth-brand">Kam</h1>
+    <p class="auth-sub">Nastavi novo geslo</p>
+    <form id="recoveryForm" autocomplete="on">
+      <label class="field-label" for="recoveryPassword">Novo geslo</label>
+      <input id="recoveryPassword" class="field-input" type="password" autocomplete="new-password" minlength="6" required>
+      <label class="field-label" for="recoveryPassword2">Ponovi geslo</label>
+      <input id="recoveryPassword2" class="field-input" type="password" autocomplete="new-password" minlength="6" required>
+      <p class="auth-error" id="recoveryError" role="alert"></p>
+      <p class="auth-note" id="recoveryNote"></p>
+      <button id="recoverySubmit" class="btn-primary auth-submit" type="submit">Shrani geslo</button>
+    </form>
+  </div>
+</section>
+
+<div id="appRoot" hidden>
 <div id="landingOverlay" class="landing-overlay">
   <div class="landing-inner">
     <div class="landing-mark" aria-hidden="true">
@@ -78,6 +125,16 @@
             <path d="M12 21s-6.5-5.2-9-9.3C1.4 9 2.3 5.3 5.6 4.3c2-.6 4 .2 5 2 .1.2.3.4.4.7l1 1.5 1-1.5c.1-.3.3-.5.4-.7 1-1.8 3-2.6 5-2 3.3 1 4.2 4.7 2.6 7.4-2.5 4.1-9 9.3-9 9.3Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
           </svg>
           <span>Vem kam grem</span>
+        </button>
+        <div class="menu-sep"></div>
+        <p class="menu-user-name" id="menuUserName">&nbsp;</p>
+        <p class="menu-user-email" id="menuUserEmail">&nbsp;</p>
+        <button id="signoutBtn" class="menu-item menu-item-danger" type="button">
+          <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="m16 17 5-5-5-5M21 12H9" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          <span>Odjava</span>
         </button>
       </div>
     </div>
@@ -373,9 +430,14 @@
     <button id="btnAreaAddSave" class="btn-primary" type="button">Shrani</button>
   </div>
 </div>
+</div><!-- /#appRoot -->
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.115.0/dist/umd/supabase.js"></script>
+<script src="js/config.js"></script>
+<script src="js/db.js"></script>
 <script src="js/app.js"></script>
 <script src="install-promo.js"></script>
+<script src="js/auth.js"></script>
 </body>
 </html>

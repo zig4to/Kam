@@ -1,4 +1,10 @@
-(function () {
+/* Aplikacija se zažene šele po uspešni prijavi — js/auth.js pokliče
+   window.startApp(). Podatki (točke, območja, gorovja, seznam) gredo prek
+   window.KamData v oblak (glej js/db.js), ne več neposredno v localStorage. */
+window.startApp = function () {
+  if (window.__kamStarted) return;
+  window.__kamStarted = true;
+
   var map = L.map('map', { zoomControl: true }).setView([46.05, 14.5], 9); // Ljubljana / Slovenija
 
   L.tileLayer('https://tiles.bergfex.at/styles/bergfex-osm/{z}/{x}/{y}.jpg', {
@@ -876,42 +882,18 @@
     resolveThrow(spec, null);
   });
 
-  // ------------------------------------------------- shranjene točke: podatki
-  var STORAGE_KEY = 'kam-saved-points';
+  // --------------------------------------------------------------- podatki
+  /* Vse štiri zbirke (točke, območja, gorovja, seznam) hrani window.KamData:
+     v pomnilniku + zrcalo v localStorage + sinhronizacija v Supabase. Te
+     ovojnice ohranjajo isti vmesnik kot prej (sinhroni load/persist). */
   var THUMB_ZOOM = 14, THUMB_W = 320, THUMB_H = 200;
 
-  function loadSaved() {
-    try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || []; }
-    catch (e) { return []; }
-  }
-  function persistSaved(list) {
-    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(list)); return true; }
-    catch (e) { return false; }
-  }
-
-  // ------------------------------------------------ shranjena območja: podatki
-  var AREAS_STORAGE_KEY = 'kam-saved-areas';
-
-  function loadSavedAreas() {
-    try { return JSON.parse(localStorage.getItem(AREAS_STORAGE_KEY)) || []; }
-    catch (e) { return []; }
-  }
-  function persistSavedAreas(list) {
-    try { localStorage.setItem(AREAS_STORAGE_KEY, JSON.stringify(list)); return true; }
-    catch (e) { return false; }
-  }
-
-  // ------------------------------------------------------ gorovja: podatki
-  var MOUNTAINS_STORAGE_KEY = 'kam-saved-mountains';
-
-  function loadSavedMountains() {
-    try { return JSON.parse(localStorage.getItem(MOUNTAINS_STORAGE_KEY)) || []; }
-    catch (e) { return []; }
-  }
-  function persistSavedMountains(list) {
-    try { localStorage.setItem(MOUNTAINS_STORAGE_KEY, JSON.stringify(list)); return true; }
-    catch (e) { return false; }
-  }
+  function loadSaved()            { return window.KamData ? KamData.get('points') : []; }
+  function persistSaved(list)     { return window.KamData ? KamData.set('points', list) : false; }
+  function loadSavedAreas()       { return window.KamData ? KamData.get('areas') : []; }
+  function persistSavedAreas(l)   { return window.KamData ? KamData.set('areas', l) : false; }
+  function loadSavedMountains()   { return window.KamData ? KamData.get('mountains') : []; }
+  function persistSavedMountains(l) { return window.KamData ? KamData.set('mountains', l) : false; }
 
   /* Slippy-map projekcija (Web Mercator) za pretvorbo lat/lng v koordinate ploščic. */
   function deg2num(lat, lng, z) {
@@ -1404,7 +1386,6 @@
   btnHome.addEventListener('click', showLanding);
 
   // ============================================================ "Kam želim"
-  var WISHLIST_STORAGE_KEY = 'kam-wishlist';
   /* Vnaprej pripravljene države in njihove regije za zavihke/podzavihke in
      spustna seznama v obrazcu. Zapisi lahko vsebujejo tudi druge države/regije
      (npr. iz uvoza) — te se pridružijo iz samih zapisov. */
@@ -1429,14 +1410,8 @@
     { key: 'vrh', label: 'Vrh' }
   ];
 
-  function loadWishlist() {
-    try { return JSON.parse(localStorage.getItem(WISHLIST_STORAGE_KEY)) || []; }
-    catch (e) { return []; }
-  }
-  function persistWishlist(list) {
-    try { localStorage.setItem(WISHLIST_STORAGE_KEY, JSON.stringify(list)); return true; }
-    catch (e) { return false; }
-  }
+  function loadWishlist()        { return window.KamData ? KamData.get('wishlist') : []; }
+  function persistWishlist(list) { return window.KamData ? KamData.set('wishlist', list) : false; }
 
   function isNum(x) { return typeof x === 'number' && isFinite(x); }
 
@@ -1837,8 +1812,21 @@
     reader.readAsText(file);
   });
 
-  renderSavedGrid();
-  renderSavedAreasGrid();
-  renderSavedMountainsGrid();
-  renderWishlist();
-})();
+  function renderAllSaved() {
+    renderSavedGrid();
+    renderSavedAreasGrid();
+    renderSavedMountainsGrid();
+    renderWishlist();
+  }
+  /* Ponoven izris tudi po prijavi (auth.js pokliče window.refreshApp, če je
+     startApp že tekel — npr. po prevzemu seje iz huba). */
+  window.refreshApp = renderAllSaved;
+
+  renderAllSaved(); // takoj iz zrcala (localStorage), da UI ni prazen
+  if (window.KamData) {
+    KamData.init().then(function () {
+      renderAllSaved();       // znova, ko pridejo podatki iz oblaka
+      map.invalidateSize();
+    });
+  }
+};
