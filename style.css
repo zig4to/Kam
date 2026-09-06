@@ -459,15 +459,19 @@ body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
   width: min(400px, 88vw);
   background: var(--bg-dark);
   border-left: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow: -8px 0 30px rgba(0, 0, 0, 0.5);
   transform: translateX(100%);
-  transition: transform 0.25s ease;
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
   overflow-y: auto;
   z-index: 2500;
   padding: 22px 16px 40px;
   box-sizing: border-box;
 }
-.saved-drawer.open { transform: translateX(0); }
+/* Senco kažemo samo, ko je odprt — sicer njen levi rob (–8px, 30px blur)
+   sili čez desni rob zaslona in izgleda kot črn pas ob strani. */
+.saved-drawer.open {
+  transform: translateX(0);
+  box-shadow: -8px 0 30px rgba(0, 0, 0, 0.5);
+}
 
 .saved-drawer-head {
   display: flex;

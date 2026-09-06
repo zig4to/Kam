@@ -1,7 +1,7 @@
 /* Predpomnilnik lupine aplikacije, da deluje tudi brez povezave.
    Ploščice zemljevida (tuja domena) gredo mimo predpomnilnika naravnost v omrežje.
    Ob spremembi datotek povečaj VERSION. */
-var VERSION = 'kam-v58';
+var VERSION = 'kam-v59';
 var SHELL = [
   './', './index.html', './style.css', './icon.svg', './manifest.json',
   './js/app.js', './install-promo.js',
