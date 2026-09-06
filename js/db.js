@@ -25,18 +25,21 @@
     areas: "kam-saved-areas",
     mountains: "kam-saved-mountains",
     wishlist: "kam-wishlist"
+    // 'types' (lastne vrste destinacij) je novejši od oblaka — brez legacy ključa
   };
 
-  var KEYS = ["points", "areas", "mountains", "wishlist"];
-  var state = { points: [], areas: [], mountains: [], wishlist: [] };
+  var KEYS = ["points", "areas", "mountains", "wishlist", "types"];
   var uid = null;
   var pushTimer = null;
   var initDone = null;
   var dirty = false;   // je v `state` sprememba, ki še ni potrjeno v oblaku?
 
   function emptyState() {
-    return { points: [], areas: [], mountains: [], wishlist: [] };
+    var s = {};
+    KEYS.forEach(function (k) { s[k] = []; });
+    return s;
   }
+  var state = emptyState();
   function normalize(raw) {
     var out = emptyState();
     if (raw && typeof raw === "object") {
@@ -65,6 +68,7 @@
     var s = emptyState();
     var found = false;
     KEYS.forEach(function (k) {
+      if (!LEGACY[k]) return;
       try {
         var v = JSON.parse(localStorage.getItem(LEGACY[k]));
         if (Array.isArray(v) && v.length) { s[k] = v; found = true; }
@@ -74,6 +78,7 @@
   }
   function clearLegacy() {
     KEYS.forEach(function (k) {
+      if (!LEGACY[k]) return;
       try { localStorage.removeItem(LEGACY[k]); } catch (e) {}
     });
   }

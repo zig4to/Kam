@@ -1403,6 +1403,9 @@ window.startApp = function () {
       'Srednja Dalmacija', 'Južna Dalmacija', 'Hrvaško zagorje', 'Slavonija', 'Banovina',
       'Zagreb z okolico']
   };
+  // Vgrajene vrste; uporabnik lahko doda svoje (gumb "+" v obrazcu). Lastne
+  // vrste se hranijo z ostalimi podatki (KamData -> ključ 'types') in se
+  // sinhronizirajo med napravami. Ključ lastne vrste je kar njeno ime.
   var WL_TYPES = [
     { key: 'slap', label: 'Slap' },
     { key: 'jezero', label: 'Jezero' },
@@ -1412,6 +1415,29 @@ window.startApp = function () {
 
   function loadWishlist()        { return window.KamData ? KamData.get('wishlist') : []; }
   function persistWishlist(list) { return window.KamData ? KamData.set('wishlist', list) : false; }
+
+  function loadCustomTypes() {
+    var raw = window.KamData ? KamData.get('types') : [];
+    return raw.filter(function (t) {
+      return t && typeof t.key === 'string' && t.key && typeof t.label === 'string' && t.label;
+    });
+  }
+  function persistCustomTypes(list) { return window.KamData ? KamData.set('types', list) : false; }
+
+  /* Vse vrste za obrazec: vgrajene + lastne + morebitne s trenutnega zapisa
+     (extra), ki jih ni več na seznamu. Brez podvojenih ključev. */
+  function allTypes(extra) {
+    var out = WL_TYPES.slice();
+    var seen = {};
+    out.forEach(function (t) { seen[t.key] = true; });
+    loadCustomTypes().forEach(function (t) {
+      if (!seen[t.key]) { seen[t.key] = true; out.push(t); }
+    });
+    (extra || []).forEach(function (k) {
+      if (k && !seen[k]) { seen[k] = true; out.push({ key: k, label: k }); }
+    });
+    return out;
+  }
 
   function isNum(x) { return typeof x === 'number' && isFinite(x); }
 
@@ -1536,7 +1562,7 @@ window.startApp = function () {
       var badges = document.createElement('div');
       badges.className = 'wl-badges';
       rec.types.forEach(function (t) {
-        var meta = WL_TYPES.filter(function (x) { return x.key === t; })[0];
+        var meta = allTypes().filter(function (x) { return x.key === t; })[0];
         var b = document.createElement('span');
         b.className = 'wl-type-badge';
         b.textContent = meta ? meta.label : t;
@@ -1642,22 +1668,72 @@ window.startApp = function () {
   }
 
   // ------------------------------------------------ obrazec za dodajanje/urejanje
-  WL_TYPES.forEach(function (t) {
-    var label = document.createElement('label');
-    label.className = 'pick-mode-row';
-    var input = document.createElement('input');
-    input.type = 'checkbox';
-    input.value = t.key;
-    var check = document.createElement('span');
-    check.className = 'pick-mode-check';
-    check.setAttribute('aria-hidden', 'true');
-    var span = document.createElement('span');
-    span.textContent = t.label;
-    label.appendChild(input);
-    label.appendChild(check);
-    label.appendChild(span);
-    destTypes.appendChild(label);
-  });
+  function checkedTypeKeys() {
+    return Array.prototype.map.call(destTypes.querySelectorAll('input:checked'), function (i) { return i.value; });
+  }
+
+  /* Zgradi vrstice s kljukicami za vse vrste + gumb "+" za novo vrsto.
+     checkedKeys = ključi, ki naj bodo obkljukani (ohranimo jih ob ponovnem
+     izrisu, npr. po dodajanju nove vrste). */
+  function renderDestTypes(checkedKeys) {
+    checkedKeys = checkedKeys || [];
+    destTypes.innerHTML = '';
+    allTypes(checkedKeys).forEach(function (t) {
+      var label = document.createElement('label');
+      label.className = 'pick-mode-row';
+      var input = document.createElement('input');
+      input.type = 'checkbox';
+      input.value = t.key;
+      input.checked = checkedKeys.indexOf(t.key) !== -1;
+      var check = document.createElement('span');
+      check.className = 'pick-mode-check';
+      check.setAttribute('aria-hidden', 'true');
+      var span = document.createElement('span');
+      span.textContent = t.label;
+      label.appendChild(input);
+      label.appendChild(check);
+      label.appendChild(span);
+      destTypes.appendChild(label);
+    });
+
+    var add = document.createElement('button');
+    add.type = 'button';
+    add.className = 'wl-type-add';
+    add.innerHTML = '<svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">' +
+      '<path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>' +
+      '<span>Nova vrsta</span>';
+    add.addEventListener('click', function () {
+      var name = prompt('Nova vrsta destinacije:');
+      if (name === null) return;
+      addCustomType(name.trim());
+    });
+    destTypes.appendChild(add);
+  }
+
+  function addCustomType(name) {
+    if (!name) return;
+    var existing = allTypes();
+    var dup = existing.some(function (t) {
+      return t.key.toLowerCase() === name.toLowerCase() || t.label.toLowerCase() === name.toLowerCase();
+    });
+    var checked = checkedTypeKeys();
+    if (dup) {
+      // že obstaja — samo jo obkljukaj
+      var match = existing.filter(function (t) {
+        return t.key.toLowerCase() === name.toLowerCase() || t.label.toLowerCase() === name.toLowerCase();
+      })[0];
+      if (match && checked.indexOf(match.key) === -1) checked.push(match.key);
+      renderDestTypes(checked);
+      return;
+    }
+    var list = loadCustomTypes();
+    list.push({ key: name, label: name });
+    persistCustomTypes(list);
+    checked.push(name);
+    renderDestTypes(checked);
+  }
+
+  renderDestTypes([]);
   /* Doda <option> v spustni seznam, če ga tam še ni (za države/regije iz
      obstoječih zapisov, ki niso na vnaprejšnjem seznamu). */
   function ensureOption(select, val) {
@@ -1705,10 +1781,7 @@ window.startApp = function () {
     destCountry.value = country;
     fillRegionOptions(country, rec ? (rec.region || '') : (wlActiveRegion || ''));
     destCoords.value = (rec && isNum(rec.lat) && isNum(rec.lng)) ? (rec.lat + ', ' + rec.lng) : '';
-    var chosen = (rec && rec.types) ? rec.types : [];
-    Array.prototype.forEach.call(destTypes.querySelectorAll('input'), function (i) {
-      i.checked = chosen.indexOf(i.value) !== -1;
-    });
+    renderDestTypes((rec && rec.types) ? rec.types.slice() : []);
     wishlistBrowse.hidden = true;
     wishlistFormView.hidden = false;
   }
