@@ -18,7 +18,8 @@
 
   var MIRROR_KEY = "kam-data-cache";
   // Stari ključi iz časa pred oblakom — ob prvi prijavi na napravi jih enkratno
-  // preselimo v oblak (če v oblaku še ni ničesar).
+  // preselimo v oblak (če v oblaku še ni ničesar), nato jih pobrišemo, da na
+  // deljeni napravi ne pricurljajo v oblak naslednjega uporabnika.
   var LEGACY = {
     points: "kam-saved-points",
     areas: "kam-saved-areas",
@@ -31,6 +32,7 @@
   var uid = null;
   var pushTimer = null;
   var initDone = null;
+  var dirty = false;   // je v `state` sprememba, ki še ni potrjeno v oblaku?
 
   function emptyState() {
     return { points: [], areas: [], mountains: [], wishlist: [] };
@@ -70,24 +72,47 @@
     });
     return found ? s : null;
   }
+  function clearLegacy() {
+    KEYS.forEach(function (k) {
+      try { localStorage.removeItem(LEGACY[k]); } catch (e) {}
+    });
+  }
 
+  // Potisne cel `state` v oblak. Vrne Promise<boolean> — true ob potrjenem
+  // zapisu. Ob neuspehu ostane `dirty`, da splakne poznejši flush().
   function pushNow() {
     pushTimer = null;
-    if (!uid) return Promise.resolve();
+    if (!uid) return Promise.resolve(false);
     return sb.from("kam_data")
       .upsert({ user_id: uid, data: state, updated_at: new Date().toISOString() },
         { onConflict: "user_id" })
       .then(function (res) {
-        if (res.error) console.warn("Kam: shranjevanje v oblak ni uspelo.", res.error.message);
+        if (res.error) {
+          console.warn("Kam: shranjevanje v oblak ni uspelo.", res.error.message);
+          return false;
+        }
+        dirty = false;
+        return true;
       })
       .catch(function (err) {
         console.warn("Kam: shranjevanje v oblak ni uspelo.", err);
+        return false;
       });
   }
   function schedulePush() {
+    dirty = true;
     if (pushTimer) clearTimeout(pushTimer);
     pushTimer = setTimeout(pushNow, 800);
   }
+  // Ob vrnitvi povezave / aplikacije v ospredje splakni morebitno neshranjeno
+  // spremembo (schedulePush teče le ob novi spremembi).
+  function flush() {
+    if (dirty && uid) pushNow();
+  }
+  window.addEventListener("online", flush);
+  document.addEventListener("visibilitychange", function () {
+    if (!document.hidden) flush();
+  });
 
   function init() {
     if (initDone) return initDone;
@@ -105,9 +130,11 @@
           if (res.error) throw res.error;
 
           if (res.data && res.data.data && !isEmptyState(normalize(res.data.data))) {
-            // V oblaku že obstaja stanje — to je vir resnice.
+            // V oblaku že obstaja stanje — to je vir resnice. Stari lokalni
+            // ključi so od zdaj zastareli.
             state = normalize(res.data.data);
             writeMirror();
+            clearLegacy();
             return;
           }
 
@@ -121,7 +148,11 @@
             state = emptyState();
           }
           writeMirror();
-          return pushNow();
+          return pushNow().then(function (ok) {
+            // Legacy pobrišemo šele po potrjenem zapisu v oblak — sicer bi ob
+            // neuspehu (brez povezave) izgubili edino kopijo.
+            if (ok) clearLegacy();
+          });
         })
         .catch(function (err) {
           // Brez povezave / napaka: delamo naprej iz zrcala, potiskanje pozneje.
@@ -144,9 +175,12 @@
   }
   function clearCache() {
     try { localStorage.removeItem(MIRROR_KEY); } catch (e) {}
+    clearLegacy(); // ob odjavi: brez tega bi na deljeni napravi pricurljali
+                   // v oblak naslednjega uporabnika (če je njegov prazen)
     state = emptyState();
     initDone = null;
     uid = null;
+    dirty = false;
   }
 
   window.KamData = { init: init, get: get, set: set, clearCache: clearCache };
