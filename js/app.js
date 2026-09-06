@@ -1405,8 +1405,23 @@
 
   // ============================================================ "Kam želim"
   var WISHLIST_STORAGE_KEY = 'kam-wishlist';
-  var SLO_REGIONS = ['Gorenjska', 'Štajerska', 'Koroška', 'Primorska', 'Notranjska',
-    'Dolenjska', 'Bela krajina', 'Prekmurje', 'Prlekija', 'Zasavje', 'Osrednja Slovenija'];
+  /* Vnaprej pripravljene države in njihove regije za zavihke/podzavihke in
+     spustna seznama v obrazcu. Zapisi lahko vsebujejo tudi druge države/regije
+     (npr. iz uvoza) — te se pridružijo iz samih zapisov. */
+  var WL_COUNTRIES = ['Slovenija', 'Italija', 'Avstrija', 'Hrvaška'];
+  var COUNTRY_REGIONS = {
+    'Slovenija': ['Gorenjska', 'Štajerska', 'Koroška', 'Primorska', 'Notranjska',
+      'Dolenjska', 'Bela krajina', 'Prekmurje', 'Prlekija', 'Zasavje', 'Osrednja Slovenija'],
+    'Italija': ['Furlanija - Julijska krajina', 'Benečija', 'Tridentinsko - Zgornje Poadižje',
+      'Lombardija', 'Piemont', 'Dolina Aoste', 'Ligurija', 'Emilija - Romanja', 'Toskana',
+      'Umbrija', 'Marke', 'Lacij', 'Abruci', 'Molize', 'Kampanija', 'Apulija', 'Bazilikata',
+      'Kalabrija', 'Sicilija', 'Sardinija'],
+    'Avstrija': ['Koroška', 'Štajerska', 'Tirolska', 'Salzburška', 'Zgornja Avstrija',
+      'Spodnja Avstrija', 'Predarlska', 'Gradiščanska', 'Dunaj'],
+    'Hrvaška': ['Istra', 'Kvarner', 'Gorski kotar', 'Lika', 'Sjeverna Dalmacija',
+      'Srednja Dalmacija', 'Južna Dalmacija', 'Hrvaško zagorje', 'Slavonija', 'Banovina',
+      'Zagreb z okolico']
+  };
   var WL_TYPES = [
     { key: 'slap', label: 'Slap' },
     { key: 'jezero', label: 'Jezero' },
@@ -1445,12 +1460,11 @@
   var destRegion = document.getElementById('destRegion');
   var destCoords = document.getElementById('destCoords');
   var destTypes = document.getElementById('destTypes');
-  var regionPresets = document.getElementById('regionPresets');
   var btnDestCancel = document.getElementById('btnDestCancel');
   var btnDestSave = document.getElementById('btnDestSave');
 
   var wlActiveCountry = 'Slovenija';
-  var wlActiveRegion = SLO_REGIONS[0];
+  var wlActiveRegion = COUNTRY_REGIONS['Slovenija'][0];
   var wlEditId = null;
 
   // Predal zdrsne z desne čez zemljevid/naslovnico — isti vzorec kot drugi seznami.
@@ -1474,18 +1488,18 @@
     openWishlistDrawer();
   });
 
-  /* Države = "Slovenija" + vse iz zapisov. Pokrajine za Slovenijo = fiksni
-     seznam SLO_REGIONS + morebitne dodatne iz zapisov; za druge države samo
-     tiste iz zapisov. */
+  /* Države = vnaprej pripravljene (WL_COUNTRIES) + vse dodatne iz zapisov.
+     Pokrajine = fiksni seznam za to državo (COUNTRY_REGIONS) + morebitne
+     dodatne iz zapisov. */
   function wlCountries(list) {
-    var out = ['Slovenija'];
+    var out = WL_COUNTRIES.slice();
     list.forEach(function (r) {
       if (r.country && out.indexOf(r.country) === -1) out.push(r.country);
     });
     return out;
   }
   function wlRegions(list, country) {
-    var out = country === 'Slovenija' ? SLO_REGIONS.slice() : [];
+    var out = (COUNTRY_REGIONS[country] || []).slice();
     list.forEach(function (r) {
       if (r.country === country && r.region && out.indexOf(r.region) === -1) out.push(r.region);
     });
@@ -1669,18 +1683,52 @@
     label.appendChild(span);
     destTypes.appendChild(label);
   });
-  SLO_REGIONS.forEach(function (rg) {
-    var o = document.createElement('option');
-    o.value = rg;
-    regionPresets.appendChild(o);
+  /* Doda <option> v spustni seznam, če ga tam še ni (za države/regije iz
+     obstoječih zapisov, ki niso na vnaprejšnjem seznamu). */
+  function ensureOption(select, val) {
+    if (!val) return;
+    var has = Array.prototype.some.call(select.options, function (o) { return o.value === val; });
+    if (!has) {
+      var o = document.createElement('option');
+      o.value = val;
+      o.textContent = val;
+      select.appendChild(o);
+    }
+  }
+  function fillCountryOptions() {
+    destCountry.innerHTML = '';
+    wlCountries(loadWishlist()).forEach(function (c) {
+      var o = document.createElement('option');
+      o.value = c;
+      o.textContent = c;
+      destCountry.appendChild(o);
+    });
+  }
+  function fillRegionOptions(country, selected) {
+    destRegion.innerHTML = '';
+    var regs = COUNTRY_REGIONS[country] || [];
+    regs.forEach(function (rg) {
+      var o = document.createElement('option');
+      o.value = rg;
+      o.textContent = rg;
+      destRegion.appendChild(o);
+    });
+    ensureOption(destRegion, selected);
+    destRegion.value = selected || regs[0] || '';
+  }
+  destCountry.addEventListener('change', function () {
+    fillRegionOptions(destCountry.value);
   });
 
   function openWishlistForm(rec) {
     wlEditId = rec ? rec.id : null;
     wishlistFormTitle.textContent = rec ? 'Uredi destinacijo' : 'Nova destinacija';
     destName.value = rec ? rec.name : '';
-    destCountry.value = rec ? (rec.country || 'Slovenija') : 'Slovenija';
-    destRegion.value = rec ? (rec.region || '') : (wlActiveRegion || '');
+    fillCountryOptions();
+    var country = rec ? (rec.country || 'Slovenija') : (wlActiveCountry || 'Slovenija');
+    ensureOption(destCountry, country);
+    destCountry.value = country;
+    fillRegionOptions(country, rec ? (rec.region || '') : (wlActiveRegion || ''));
     destCoords.value = (rec && isNum(rec.lat) && isNum(rec.lng)) ? (rec.lat + ', ' + rec.lng) : '';
     var chosen = (rec && rec.types) ? rec.types : [];
     Array.prototype.forEach.call(destTypes.querySelectorAll('input'), function (i) {
@@ -1700,8 +1748,8 @@
     if (!name) { showToast('Vpiši ime destinacije.', 2500); return; }
     if (!types.length) { showToast('Izberi vsaj eno vrsto.', 2500); return; }
 
-    var country = destCountry.value.trim() || 'Slovenija';
-    var region = destRegion.value.trim() || (country === 'Slovenija' ? SLO_REGIONS[0] : 'Drugo');
+    var country = destCountry.value || 'Slovenija';
+    var region = destRegion.value || (COUNTRY_REGIONS[country] && COUNTRY_REGIONS[country][0]) || 'Drugo';
 
     var lat = null, lng = null;
     var parts = destCoords.value.split(',');

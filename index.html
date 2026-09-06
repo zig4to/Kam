@@ -217,10 +217,9 @@
   <div id="wishlistFormView" class="wl-form" hidden>
     <div class="row"><strong id="wishlistFormTitle">Nova destinacija</strong></div>
     <input id="destName" class="area-name-input" type="text" maxlength="80" placeholder="Ime destinacije">
-    <input id="destCountry" class="area-name-input" type="text" maxlength="60" placeholder="Država" value="Slovenija">
-    <input id="destRegion" class="area-name-input" type="text" maxlength="60" placeholder="Regija" list="regionPresets">
+    <select id="destCountry" class="area-name-input" aria-label="Država"></select>
+    <select id="destRegion" class="area-name-input" aria-label="Regija"></select>
     <input id="destCoords" class="area-name-input" type="text" maxlength="40" placeholder="Koordinate (neobvezno) – npr. 46.29, 13.80">
-    <datalist id="regionPresets"></datalist>
 
     <span class="ele-filter-label">Vrsta destinacije</span>
     <div id="destTypes" class="wl-types"></div>
