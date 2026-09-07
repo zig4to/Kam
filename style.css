@@ -23,6 +23,13 @@ body {
 
 #app { position: relative; height: 100vh; height: 100dvh; }
 
+/* Na zelo velikih zaslonih je vse skupaj drobno — povečaj celotno stran.
+   CSS zoom (ne transform) ohrani fiksno/absolutno postavitev; Leaflet 1.9
+   pravilno upošteva zoom pri izračunu koordinat klikov. */
+@media (min-width: 1920px) { body { zoom: 1.12; } }
+@media (min-width: 2560px) { body { zoom: 1.3; } }
+@media (min-width: 3400px) { body { zoom: 1.55; } }
+
 /* Vrstica lebdi nad zemljevidom in je prosojna; da ostane zemljevid v tem
    pasu premakljiv, sama ne lovi klikov — te sprejme le gumb. */
 #topbar {
@@ -849,9 +856,12 @@ html.landing-restored .landing-overlay { display: none; }
   .wl-navbar-add { padding: 8px; }
   .wl-navbar-add span { display: none; }
 }
-/* Mobilno: filtrirni pas je skrit, dokler ga ne odpremo z gumbom za filter. */
+/* Mobilno: filtrirni pas je skrit, dokler ga ne odpremo z gumbom za filter.
+   Odprt ni lepljiv — ob drsenju navzdol se naravno odpelje navzgor iz pogleda;
+   ko je povsem odscrollan, ga skript zapre (spet se odpre le z gumbom). */
 @media (max-width: 899px) {
   #wishlistSection:not(.wl-filters-open) #wlFilters { display: none; }
+  #wishlistSection.wl-filters-open #wlFilters { position: relative; top: auto; }
 }
 
 /* desni sklop v navbaru: zapri + ikona računa (ta odpre meni, kot na zemljevidu) */
@@ -936,29 +946,104 @@ html.landing-restored .landing-overlay { display: none; }
 .wl-filter-group.collapsed .wl-sort-row,
 .wl-filter-group.collapsed .wl-explore-list { display: none; }
 
-/* "Razišči ideje drugih" — seznam gumbov oseb, ki delijo svoj seznam. */
-.wl-explore-list { display: flex; flex-direction: column; gap: 6px; }
+/* "Razišči ideje drugih" — poudarjena, interaktivna sekcija. */
+#wlExploreGroup {
+  border-top: none;
+  margin-top: 4px;
+  padding: 4px 12px;
+  border: 1px solid rgba(56, 189, 248, 0.30);
+  border-radius: 14px;
+  background: linear-gradient(180deg, rgba(56, 189, 248, 0.12), rgba(56, 189, 248, 0.03));
+}
+#wlExploreGroup .wl-filter-head { padding: 6px 0; }
+#wlExploreGroup .wl-filter-label {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--accent-blue);
+}
+#wlExploreGroup .wl-filter-chevron { color: var(--accent-blue); }
+#wlExploreGroup .wl-filter-head:hover .wl-filter-label,
+#wlExploreGroup .wl-filter-head:hover .wl-filter-chevron { color: #7dd3fc; }
+.wl-explore-ico { width: 15px; height: 15px; flex-shrink: 0; }
+
+.wl-explore-list { display: flex; flex-direction: column; gap: 7px; }
+#wlExploreGroup .wl-explore-list { margin-bottom: 6px; }
 .wl-explore-btn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
   width: 100%;
   text-align: left;
-  padding: 8px 12px;
-  border-radius: 10px;
+  padding: 8px 10px;
+  border-radius: 12px;
   border: 1px solid rgba(255, 255, 255, 0.12);
   background: rgba(255, 255, 255, 0.05);
   color: var(--text);
   font-family: inherit;
-  font-size: 12.5px;
+  font-size: 13px;
   font-weight: 600;
   cursor: pointer;
+  transition: transform 0.14s ease, background 0.14s ease, border-color 0.14s ease;
 }
-.wl-explore-btn:hover { background: rgba(255, 255, 255, 0.1); }
+.wl-explore-btn:hover { background: rgba(255, 255, 255, 0.1); transform: translateX(2px); }
+.wl-explore-btn:active { transform: translateX(1px) scale(0.99); }
+
+.wl-explore-avatar {
+  flex-shrink: 0;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.3px;
+  color: #fff;
+  background: hsl(var(--wl-hue, 205) 48% 40%);
+}
+.wl-explore-avatar svg { width: 15px; height: 15px; }
+
+.wl-explore-name {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.2;
+  min-width: 0;
+  overflow: hidden;
+}
+.wl-explore-kicker {
+  font-size: 9.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: var(--text-dim);
+}
+.wl-explore-arrow {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  margin-left: auto;
+  color: var(--text-dim);
+  transition: transform 0.14s ease, color 0.14s ease;
+}
+.wl-explore-btn:hover .wl-explore-arrow { color: var(--accent-blue); transform: translateX(2px); }
+
 .wl-explore-btn.active {
   border-color: var(--accent-blue);
-  color: var(--accent-blue);
-  background: rgba(56, 189, 248, 0.12);
+  background: linear-gradient(180deg, rgba(56, 189, 248, 0.22), rgba(56, 189, 248, 0.12));
 }
-.wl-explore-mine { border-style: dashed; color: var(--text-dim); }
-.wl-explore-empty { margin: 2px 0; font-size: 12px; color: var(--text-dim); }
+.wl-explore-btn.active .wl-explore-kicker,
+.wl-explore-btn.active .wl-explore-arrow { color: var(--accent-blue); }
+.wl-explore-btn.active .wl-explore-avatar { background: var(--accent-blue); color: #0b1622; }
+
+.wl-explore-mine {
+  border-style: dashed;
+  border-color: rgba(255, 255, 255, 0.18);
+  background: rgba(255, 255, 255, 0.03);
+}
+.wl-explore-mine .wl-explore-avatar { background: rgba(255, 255, 255, 0.1); color: var(--text-dim); }
+.wl-explore-empty { margin: 4px 2px 2px; font-size: 12px; color: var(--text-dim); }
 
 /* Pas na vrhu seznama, ko gledaš tuje ideje. */
 .wl-explore-banner {
@@ -1027,6 +1112,10 @@ html.landing-restored .landing-overlay { display: none; }
 .wl-tabs::-webkit-scrollbar, .wl-subtabs::-webkit-scrollbar { display: none; }
 /* display: flex bi sicer prevladal nad privzetim [hidden] { display: none } */
 .wl-tabs[hidden], .wl-subtabs[hidden] { display: none; }
+
+/* Država in Vrsta imata lahko veliko pilul — naj se prelomijo v več vrstic
+   (kot na namizju), ne pa drsijo v eni vrstici. */
+#wishlistTabs, #wishlistTypeTabs { flex-wrap: wrap; overflow-x: visible; }
 
 .wl-tab, .wl-subtab {
   flex-shrink: 0;
@@ -1318,6 +1407,15 @@ html.landing-restored .landing-overlay { display: none; }
 /* Namizje: vrste destinacije po 4 v vrsto, nato naprej po vrsticah. */
 @media (min-width: 900px) {
   .wl-types { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  /* dolgo ime vrste (npr. "Znamenitost") odreži na robu kartice — brez "…" */
+  .wl-types .pick-mode-row > span:last-child {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: clip;
+    white-space: nowrap;
+  }
+  /* vsebina kartice (kljukica + ikona + besedilo) malo bolj levo in tesneje */
+  .wl-types .pick-mode-row { padding-left: 6px; gap: 5px; }
 }
 
 /* --- namizje: dvodelni pogled — levo filtrirni stolpec, desno seznam kartic.
@@ -1365,6 +1463,12 @@ html.landing-restored .landing-overlay { display: none; }
   /* ožja kartica (slika desno) — koordinate v svojo vrsto pod značke */
   #wishlistList .wl-meta-line { flex-direction: column; align-items: flex-start; gap: 4px; }
   #wishlistList .wl-row.has-img { height: 104px; }
+}
+
+/* XXL zasloni: točno 4 večje kartice na vrsto. */
+@media (min-width: 1920px) {
+  #wishlistList { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  #wishlistList .wl-row.has-img { height: 120px; }
 }
 
 /* ------------------------------------------------------------ prijava */

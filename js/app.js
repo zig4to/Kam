@@ -1705,7 +1705,15 @@ window.startApp = function () {
     { key: 'slap', label: 'Slap' },
     { key: 'jezero', label: 'Jezero' },
     { key: 'soteska', label: 'Soteska' },
-    { key: 'vrh', label: 'Vrh' }
+    { key: 'vrh', label: 'Vrh' },
+    { key: 'Znamenitost', label: 'Znamenitost' },
+    { key: 'Bivak', label: 'Bivak' },
+    { key: 'Korita', label: 'Korita' },
+    { key: 'Potok', label: 'Potok' },
+    { key: 'Reka', label: 'Reka' },
+    { key: 'pot', label: 'pot' },
+    { key: 'grad', label: 'grad' },
+    { key: 'izvir', label: 'izvir' }
   ];
 
   function loadWishlist()        { return window.KamData ? KamData.get('wishlist') : []; }
@@ -1967,6 +1975,20 @@ window.startApp = function () {
     });
   }
 
+  /* Začetnice imena za avatar ("Žiga T." -> "ŽT"). */
+  function wlInitials(name) {
+    var parts = String(name || '').trim().split(/\s+/).filter(Boolean);
+    var a = parts[0] ? parts[0].charAt(0) : '';
+    var b = parts[1] ? parts[1].charAt(0) : (parts[0] ? parts[0].charAt(1) : '');
+    return (a + b).toUpperCase() || '?';
+  }
+  /* Stalen odtenek iz imena, da so avatarji razgibani. */
+  function wlHue(name) {
+    var s = String(name || ''), h = 0;
+    for (var i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) % 360;
+    return h;
+  }
+
   function renderExploreList() {
     if (!wlExploreList) return;
     wlExploreList.innerHTML = '';
@@ -1977,31 +1999,74 @@ window.startApp = function () {
       wlExploreList.appendChild(m);
       return;
     }
+
+    var SVGNS = 'http://www.w3.org/2000/svg';
+    function svgPath(cls, d) {
+      var s = document.createElementNS(SVGNS, 'svg');
+      s.setAttribute('class', cls);
+      s.setAttribute('viewBox', '0 0 24 24');
+      s.setAttribute('fill', 'none');
+      s.setAttribute('aria-hidden', 'true');
+      var p = document.createElementNS(SVGNS, 'path');
+      p.setAttribute('d', d);
+      p.setAttribute('stroke', 'currentColor');
+      p.setAttribute('stroke-width', '2');
+      p.setAttribute('stroke-linecap', 'round');
+      p.setAttribute('stroke-linejoin', 'round');
+      s.appendChild(p);
+      return s;
+    }
+    function exploreBtn(opts) {
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'wl-explore-btn' + (opts.cls ? ' ' + opts.cls : '');
+      var av = document.createElement('span');
+      av.className = 'wl-explore-avatar';
+      if (opts.back) av.appendChild(svgPath('', 'M19 12H5M11 6l-6 6 6 6'));
+      else { av.textContent = wlInitials(opts.name); av.style.setProperty('--wl-hue', wlHue(opts.name)); }
+      var nm = document.createElement('span');
+      nm.className = 'wl-explore-name';
+      if (opts.kicker) {
+        var k = document.createElement('span');
+        k.className = 'wl-explore-kicker';
+        k.textContent = opts.kicker;
+        nm.appendChild(k);
+      }
+      nm.appendChild(document.createTextNode(opts.label));
+      b.appendChild(av);
+      b.appendChild(nm);
+      if (!opts.back) b.appendChild(svgPath('wl-explore-arrow', 'M5 12h14M13 6l6 6-6 6'));
+      b.addEventListener('click', opts.onClick);
+      return b;
+    }
+
     KamData.listShared().then(function (people) {
       wlExploreList.innerHTML = '';
+
       if (wlExplore) {
-        var mine = document.createElement('button');
-        mine.type = 'button';
-        mine.className = 'wl-explore-btn wl-explore-mine';
-        mine.textContent = 'Moj seznam';
-        mine.addEventListener('click', exitExplore);
-        wlExploreList.appendChild(mine);
+        wlExploreList.appendChild(exploreBtn({
+          cls: 'wl-explore-mine', back: true, label: 'Nazaj na moj seznam',
+          onClick: exitExplore
+        }));
       }
+
       if (!people.length) {
-        var e = document.createElement('p');
-        e.className = 'wl-explore-empty';
-        e.textContent = 'Nihče ne deli seznama.';
-        wlExploreList.appendChild(e);
+        if (!wlExplore) {
+          var e = document.createElement('p');
+          e.className = 'wl-explore-empty';
+          e.textContent = 'Nihče (še) ne deli svojega seznama.';
+          wlExploreList.appendChild(e);
+        }
         return;
       }
+
       people.forEach(function (p) {
-        var b = document.createElement('button');
-        b.type = 'button';
-        b.className = 'wl-explore-btn' +
-          (wlExplore && wlExplore.userId === p.userId ? ' active' : '');
-        b.textContent = 'Ideje od ' + p.name;
-        b.addEventListener('click', function () { enterExplore(p.userId, p.name); });
-        wlExploreList.appendChild(b);
+        var active = !!(wlExplore && wlExplore.userId === p.userId);
+        wlExploreList.appendChild(exploreBtn({
+          cls: active ? 'active' : '', name: p.name,
+          kicker: 'Ideje od', label: p.name,
+          onClick: function () { if (active) exitExplore(); else enterExplore(p.userId, p.name); }
+        }));
       });
     });
   }
@@ -2042,6 +2107,11 @@ window.startApp = function () {
     wishlistFormView.hidden = true;
     wishlistBrowse.hidden = false;
     wishlistSection.classList.remove('wl-form-open');
+    wishlistBrowse.scrollTop = 0;   // vedno začnemo na vrhu
+    wlLastScroll = 0;
+    // Ob vsakem odprtju predala filter odraža shranjeno nastavitev (drsenje ga je
+    // morda med tem zaprlo).
+    try { setFiltersOpen(localStorage.getItem(WL_FILTERS_OPEN_KEY) === '1', false); } catch (e) {}
     wishlistSection.classList.add('open');
     wishlistBackdrop.classList.add('open');
     rememberWishlistOpen(true);
@@ -2091,6 +2161,31 @@ window.startApp = function () {
   btnWlFilterToggle.addEventListener('click', function () {
     setFiltersOpen(!wishlistSection.classList.contains('wl-filters-open'), true);
   });
+
+  /* Mobilno: odprt filtrirni pas ni lepljiv (glej CSS), zato se ob drsenju
+     navzdol naravno odpelje navzgor iz pogleda — ne izgine takoj. Ko je povsem
+     odscrollan, ga tu zapremo (brez shranjevanja); spet se odpre le z gumbom v
+     navbaru. Drsenje navzgor ga (dokler ni zaprt) naravno vrne v pogled. */
+  var wlLastScroll = 0, wlScrollRaf = false;
+  wishlistBrowse.addEventListener('scroll', function () {
+    if (wlScrollRaf) return;
+    wlScrollRaf = true;
+    requestAnimationFrame(function () {
+      wlScrollRaf = false;
+      if (!wishlistSection.classList.contains('wl-filters-open')) return;
+      if (!(window.matchMedia && window.matchMedia('(max-width: 899px)').matches)) return;
+      var st = wishlistBrowse.scrollTop;
+      var down = st > wlLastScroll + 1;
+      wlLastScroll = st;
+      var fh = wlFilters ? wlFilters.offsetHeight : 0;
+      if (down && fh && st >= fh - 4) {
+        setFiltersOpen(false, false);
+        // vsebina naj ne poskoči: odštej višino pasu, ki je izginil iz toka
+        wishlistBrowse.scrollTop = Math.max(0, st - fh);
+        wlLastScroll = wishlistBrowse.scrollTop;
+      }
+    });
+  }, { passive: true });
 
   /* Vsak filter (Država / Regija / Vrsta) je zložljiv; klik po celotni naslovni
      vrstici ga odpre ali zapre. Stanje se ohrani po osvežitvi (localStorage). */
@@ -2348,6 +2443,7 @@ window.startApp = function () {
         var el = wishlistSection.querySelector('.wl-browse-inner');
         if (el) el.scrollTop = savedScroll.inner;
         if (wishlistBrowse) wishlistBrowse.scrollTop = savedScroll.browse;
+        wlLastScroll = savedScroll.browse;   // ne šteje kot poteza
       });
     });
 
@@ -2371,9 +2467,6 @@ window.startApp = function () {
 
     var countries = wlCountries(list);
     if (wlActiveCountry !== WL_ALL && countries.indexOf(wlActiveCountry) === -1) wlActiveCountry = countries[0];
-    // Na mobilnem pri državi ni gumba "Vse" — če je bil izbran, preskoči na prvo državo.
-    var wlMobile = !!(window.matchMedia && window.matchMedia('(max-width: 899px)').matches);
-    if (wlMobile && wlActiveCountry === WL_ALL && countries.length) wlActiveCountry = countries[0];
     var allCountries = wlActiveCountry === WL_ALL;
     var regions = wlRegions(list, wlActiveCountry);
     if (wlActiveRegion !== WL_ALL && regions.indexOf(wlActiveRegion) === -1) wlActiveRegion = WL_ALL;
@@ -2397,7 +2490,7 @@ window.startApp = function () {
     wishlistSubtabs.hidden = !hasAny;
 
     // -- države (+ "Vse", a ne na mobilnem)
-    var countryItems = wlMobile ? [] : [{ value: WL_ALL, label: 'Vse' }];
+    var countryItems = [{ value: WL_ALL, label: 'Vse' }];
     countries.forEach(function (c) { countryItems.push({ value: c, label: c }); });
     var pickCountry = function (c) {
       wlActiveCountry = c; wlActiveRegion = WL_ALL; wlActiveType = WL_ALL;
@@ -2429,8 +2522,10 @@ window.startApp = function () {
         (alpha || allCountries || wlActiveRegion === WL_ALL || r.region === wlActiveRegion);
     });
 
-    // -- vrste destinacij (+ "Vse"), le tiste, ki se pojavijo v trenutnem obsegu
+    // -- vrste destinacij (+ "Vse"): vse privzete vrste vedno + morebitne dodatne
+    // iz zapisov v trenutnem obsegu
     var typeKeys = [];
+    if (!exploring) WL_TYPES.forEach(function (t) { typeKeys.push(t.key); });
     scoped.forEach(function (r) {
       (r.types || []).forEach(function (t) { if (typeKeys.indexOf(t) === -1) typeKeys.push(t); });
     });
@@ -2717,11 +2812,14 @@ window.startApp = function () {
     wishlistFormTitle.textContent = rec ? 'Uredi destinacijo' : 'Nova destinacija';
     destName.value = rec ? rec.name : '';
     fillCountryOptions();
-    var country = rec ? (rec.country || 'Slovenija') : (wlActiveCountry || 'Slovenija');
+    // Nova destinacija: privzeto Slovenija (ne glede na trenutni filter države).
+    var country = rec ? (rec.country || 'Slovenija') : 'Slovenija';
     ensureOption(destCountry, country);
     destCountry.value = country;
+    var slRegions = COUNTRY_REGIONS['Slovenija'] || [];
     var defRegion = rec ? (rec.region || '')
-      : (wlActiveRegion && wlActiveRegion !== WL_ALL ? wlActiveRegion : '');
+      : (wlActiveRegion && wlActiveRegion !== WL_ALL && slRegions.indexOf(wlActiveRegion) !== -1
+          ? wlActiveRegion : '');
     fillRegionOptions(country, defRegion);
     destCoords.value = (rec && isNum(rec.lat) && isNum(rec.lng)) ? (rec.lat + ', ' + rec.lng) : '';
     destUserImage = (rec && rec.userImage) || null;
