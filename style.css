@@ -1263,9 +1263,9 @@ html.landing-restored .landing-overlay { display: none; }
 }
 .wl-types .pick-mode-row { min-width: 0; }
 .wl-types .pick-mode-row svg { width: 16px; height: 16px; flex-shrink: 0; color: var(--accent-blue); }
-/* Vrstica pod vrstami: "Nova vrsta" (3/4) + odstrani lastno vrsto (1/4). */
+/* Vrstica pod vrstami: "Nova vrsta" + "Slika" (naloži svojo) + odstrani vrsto. */
 .wl-type-actions { display: flex; gap: 8px; grid-column: 1 / -1; }
-.wl-type-add, .wl-type-remove {
+.wl-type-add, .wl-type-img, .wl-type-remove {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1277,13 +1277,42 @@ html.landing-restored .landing-overlay { display: none; }
   color: var(--text-dim);
   font-size: 13px;
   font-family: inherit;
+  white-space: nowrap;
   cursor: pointer;
 }
 .wl-type-add { flex: 3; }
+.wl-type-img { flex: 2; }
 .wl-type-remove { flex: 1; }
-.wl-type-add:hover { color: var(--text); border-color: rgba(255, 255, 255, 0.4); }
+.wl-type-add:hover, .wl-type-img:hover { color: var(--text); border-color: rgba(255, 255, 255, 0.4); }
 .wl-type-remove:hover { color: var(--danger); border-color: rgba(239, 68, 68, 0.5); }
-.wl-type-add svg, .wl-type-remove svg { width: 16px; height: 16px; flex-shrink: 0; }
+.wl-type-img.on { color: var(--accent-blue); border-color: var(--accent-blue); border-style: solid; }
+
+/* Predogled naložene slike pod vrstico gumbov. */
+.wl-type-img-preview {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 4px;
+}
+.wl-type-img-preview img {
+  width: 92px;
+  height: 58px;
+  object-fit: cover;
+  border-radius: 8px;
+  background: #0a0c10;
+  flex-shrink: 0;
+}
+.wl-type-img-clear {
+  background: none;
+  border: none;
+  color: var(--danger);
+  font: inherit;
+  font-size: 13px;
+  padding: 4px 0;
+  cursor: pointer;
+}
+.wl-type-add svg, .wl-type-img svg, .wl-type-remove svg { width: 16px; height: 16px; flex-shrink: 0; }
 .wl-form .radius-actions { margin-top: 16px; }
 
 /* Namizje: vrste destinacije po 4 v vrsto, nato naprej po vrsticah. */

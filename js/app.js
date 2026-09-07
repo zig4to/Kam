@@ -1139,6 +1139,8 @@ window.startApp = function () {
   /* Poskrbi, da ima kartica sliko: nastavi jo, če je znana; sicer jo poišče,
      shrani v zapis in posodobi le to kartico (brez ponovnega izrisa seznama). */
   function ensureCardImage(rec, imgEl, rowEl) {
+    // Uporabnikova naložena slika ima prednost pred sliko iz spleta.
+    if (rec.userImage) { imgEl.src = rec.userImage; rowEl.classList.add('has-img'); return; }
     if (rec.image) { imgEl.src = rec.image; rowEl.classList.add('has-img'); return; }
     if (wlExplore) return;                       // tuj seznam — ne pišemo v tuje zapise
     if (wlImgInflight[rec.id]) return;
@@ -1851,8 +1853,41 @@ window.startApp = function () {
   var destRegion = document.getElementById('destRegion');
   var destCoords = document.getElementById('destCoords');
   var destTypes = document.getElementById('destTypes');
+  var destImageFile = document.getElementById('destImageFile');
   var btnDestCancel = document.getElementById('btnDestCancel');
   var btnDestSave = document.getElementById('btnDestSave');
+
+  /* Slika, ki jo uporabnik sam naloži v obrazcu (pomanjšan data: URI). Če je
+     nastavljena, ima prednost pred sliko iz spleta (rec.userImage). */
+  var destUserImage = null;
+
+  /* Pomanjša naloženo sliko na razumno velikost za shrambo (blob gre tudi v
+     localStorage in v deljeni profil). Vrne data:image/jpeg ali null. */
+  function compressImageFile(file) {
+    return new Promise(function (resolve) {
+      if (!file || !/^image\//.test(file.type)) { resolve(null); return; }
+      var fr = new FileReader();
+      fr.onerror = function () { resolve(null); };
+      fr.onload = function () {
+        var im = new Image();
+        im.onerror = function () { resolve(null); };
+        im.onload = function () {
+          var max = 640;
+          var w = im.naturalWidth || im.width, h = im.naturalHeight || im.height;
+          if (!w || !h) { resolve(null); return; }
+          var s = Math.min(1, max / Math.max(w, h));
+          var cw = Math.round(w * s), ch = Math.round(h * s);
+          var c = document.createElement('canvas');
+          c.width = cw; c.height = ch;
+          c.getContext('2d').drawImage(im, 0, 0, cw, ch);
+          try { resolve(c.toDataURL('image/jpeg', 0.7)); }
+          catch (e) { resolve(null); }
+        };
+        im.src = fr.result;
+      };
+      fr.readAsDataURL(file);
+    });
+  }
 
   var wlActiveCountry = 'Slovenija';
   var wlActiveRegion = WL_ALL;
@@ -2546,6 +2581,18 @@ window.startApp = function () {
     });
     actions.appendChild(add);
 
+    // "Slika" — uporabnik sam naloži sliko; levo od gumba za izbris vrste.
+    var imgBtn = document.createElement('button');
+    imgBtn.type = 'button';
+    imgBtn.className = 'wl-type-img' + (destUserImage ? ' on' : '');
+    imgBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">' +
+      '<path d="M4 5h16a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>' +
+      '<circle cx="9" cy="10" r="1.6" stroke="currentColor" stroke-width="1.4"/>' +
+      '<path d="m5 17 4-4 3 3 3-4 4 5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>' +
+      '<span>' + (destUserImage ? 'Slika ✓' : 'Slika') + '</span>';
+    imgBtn.addEventListener('click', function () { destImageFile.value = ''; destImageFile.click(); });
+    actions.appendChild(imgBtn);
+
     var remove = document.createElement('button');
     remove.type = 'button';
     remove.className = 'wl-type-remove';
@@ -2557,6 +2604,25 @@ window.startApp = function () {
     actions.appendChild(remove);
 
     destTypes.appendChild(actions);
+
+    // Predogled naložene slike + gumb za odstranitev.
+    if (destUserImage) {
+      var prev = document.createElement('div');
+      prev.className = 'wl-type-img-preview';
+      var pi = document.createElement('img');
+      pi.src = destUserImage; pi.alt = '';
+      var clr = document.createElement('button');
+      clr.type = 'button';
+      clr.className = 'wl-type-img-clear';
+      clr.textContent = 'Odstrani sliko';
+      clr.addEventListener('click', function () {
+        destUserImage = null;
+        renderDestTypes(checkedTypeKeys());
+      });
+      prev.appendChild(pi);
+      prev.appendChild(clr);
+      destTypes.appendChild(prev);
+    }
   }
 
   function addCustomType(name) {
@@ -2658,6 +2724,7 @@ window.startApp = function () {
       : (wlActiveRegion && wlActiveRegion !== WL_ALL ? wlActiveRegion : '');
     fillRegionOptions(country, defRegion);
     destCoords.value = (rec && isNum(rec.lat) && isNum(rec.lng)) ? (rec.lat + ', ' + rec.lng) : '';
+    destUserImage = (rec && rec.userImage) || null;
     renderDestTypes((rec && rec.types) ? rec.types.slice() : []);
     wishlistBrowse.hidden = true;
     wishlistFormView.hidden = false;
@@ -2686,18 +2753,22 @@ window.startApp = function () {
     if (wlEditId !== null) {
       var it = list.find(function (x) { return x.id === wlEditId; });
       if (it) {
-        // Ime ali koordinate spremenjeni -> zavrzi staro sliko, da se poišče znova.
+        // Ime ali koordinate spremenjeni -> zavrzi sliko iz spleta, da se poišče
+        // znova (uporabnikova naložena slika ostane).
         if (it.name !== name || it.lat !== lat || it.lng !== lng) {
           delete it.image; delete it.imgSrc; delete it.imgTs;
         }
         it.name = name; it.country = country; it.region = region;
         it.lat = lat; it.lng = lng; it.types = types;
+        if (destUserImage) it.userImage = destUserImage; else delete it.userImage;
       }
     } else {
-      list.push({
+      var rec = {
         id: Date.now(), name: name, country: country, region: region,
         lat: lat, lng: lng, types: types, visited: false, created: Date.now()
-      });
+      };
+      if (destUserImage) rec.userImage = destUserImage;
+      list.push(rec);
     }
     var ok = persistWishlist(list);
     wlActiveCountry = country;
@@ -2711,6 +2782,16 @@ window.startApp = function () {
   btnAddDest.addEventListener('click', function () { openWishlistForm(null); });
   btnDestCancel.addEventListener('click', closeWishlistForm);
   btnDestSave.addEventListener('click', saveWishlistForm);
+
+  destImageFile.addEventListener('change', function () {
+    var f = destImageFile.files && destImageFile.files[0];
+    if (!f) return;
+    compressImageFile(f).then(function (uri) {
+      if (!uri) { showToast('Slike ni bilo mogoče naložiti.', 2800); return; }
+      destUserImage = uri;
+      renderDestTypes(checkedTypeKeys());
+    });
+  });
 
   /* Ko uporabnik zapusti polje za koordinate: (1) jih pretvorimo v enotno obliko
      "46.3190927, 14.7246127" (npr. iz "46°16′25″N 13°48′44″E"); (2) za Slovenijo
