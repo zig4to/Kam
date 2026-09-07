@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>Kam</title>
+<meta name="color-scheme" content="dark">
 <meta name="theme-color" content="#12151b">
 <meta name="description" content="Interaktiven zemljevid za odločanje, kam iti.">
 <link rel="manifest" href="manifest.json">
@@ -12,8 +13,20 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Kam">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 <link rel="stylesheet" href="style.css">
+<script>
+  /* Če smo bili nazadnje na zemljevidu ("Pojdi naključno"), takoj skrij začetni
+     zaslon, da po osvežitvi ne utripne. app.js poskrbi za map.invalidateSize(). */
+  try {
+    if (localStorage.getItem('kam:landingHidden') === '1') {
+      document.documentElement.classList.add('landing-restored');
+    }
+  } catch (e) {}
+</script>
 </head>
 <body>
 <section class="auth-screen" id="authScreen" hidden>
@@ -80,16 +93,19 @@
 
 <div id="app">
   <header id="topbar">
-    <button id="btnHome" class="btn-home" type="button" title="Domov" aria-label="Domov">
+    <button id="btnHome" class="btn-home" type="button" title="Nazaj" aria-label="Nazaj">
       <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-        <path d="M4 11.5 12 5l8 6.5M6 10v9h12v-9" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M20 12H5M12 19l-7-7 7-7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
       </svg>
     </button>
     <button id="btnCompass" class="btn-compass" type="button">
-      <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-        <circle cx="12" cy="12" r="9" stroke="#fff" stroke-width="1.6"/>
-        <path d="M15.5 8.5L13 13L8.5 15.5L11 11L15.5 8.5Z" fill="#fff"/>
-        <circle cx="12" cy="12" r="1.3" fill="#38bdf8"/>
+      <svg class="compass-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+        <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.5"/>
+        <path d="M12 4.6 9.6 10 12 12 14.4 10Z" fill="currentColor"/>
+        <path d="M19.4 12 14 9.6 12 12 14 14.4Z" fill="currentColor" fill-opacity="0.4"/>
+        <path d="M12 19.4 14.4 14 12 12 9.6 14Z" fill="currentColor" fill-opacity="0.4"/>
+        <path d="M4.6 12 10 14.4 12 12 10 9.6Z" fill="currentColor" fill-opacity="0.4"/>
+        <circle cx="12" cy="12" r="1.5" fill="currentColor"/>
       </svg>
       <span>Vrži kompas</span>
     </button>
@@ -230,45 +246,126 @@
      dodajanje/urejanje je znotraj predala (#wishlistFormView), da se izognemo
      prekrivanju z-index panelov. -->
 <div id="wishlistBackdrop" class="saved-backdrop"></div>
-<section id="wishlistSection" class="saved-drawer">
-  <div class="saved-drawer-head">
+<section id="wishlistSection" class="saved-drawer wishlist-full">
+  <div class="saved-drawer-head wl-appbar">
     <h2>Vem kam grem</h2>
-    <button id="btnWishlistClose" class="saved-close-btn" type="button" aria-label="Zapri">
-      <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-        <path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
-      </svg>
-    </button>
+    <div class="wl-navbar-center">
+      <button id="btnAddDest" class="wl-navbar-add" type="button">
+        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+          <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.7"/>
+          <path d="M12 8v8M8 12h8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+        </svg>
+        <span>Dodaj destinacijo</span>
+      </button>
+      <button id="btnWlFilterToggle" class="wl-navbar-filter" type="button" aria-expanded="false" aria-label="Filtri">
+        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+          <path d="M4 5h16l-6 8v6l-4 2v-8L4 5Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/>
+        </svg>
+      </button>
+    </div>
+    <div class="wl-appbar-right">
+      <button id="btnWishlistClose" class="saved-close-btn" type="button" aria-label="Zapri">
+        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+          <path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+        </svg>
+      </button>
+      <div class="wl-menu-wrap">
+        <button id="btnWlUser" class="wl-user-btn" type="button" aria-haspopup="true" aria-expanded="false" aria-label="Račun in meni">
+          <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <circle cx="12" cy="9" r="3.3" stroke="currentColor" stroke-width="1.7"/>
+            <path d="M5.5 19.3a7 7 0 0 1 13 0" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+          </svg>
+        </button>
+        <div id="wlMenuDropdown" class="menu-dropdown wl-menu-dropdown" hidden>
+          <button id="wlMenuSaved" class="menu-item" type="button">
+            <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+              <path d="M6.5 3.5h11a1 1 0 0 1 1 1v16l-6.5-4-6.5 4v-16a1 1 0 0 1 1-1Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/>
+            </svg>
+            <span>Shranjene točke</span>
+          </button>
+          <button id="wlMenuAreas" class="menu-item" type="button">
+            <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+              <path d="M4 8.5 9 5l6 3.5 5-3v10.5l-5 3-6-3.5-5 3V8.5Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/>
+              <path d="M9 5v10.5M15 8.5V19" stroke="currentColor" stroke-width="1.7"/>
+            </svg>
+            <span>Shranjena območja</span>
+          </button>
+          <button id="wlMenuMountains" class="menu-item" type="button">
+            <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+              <path d="m4 17 5-8 3.2 4.5L14 10l6 7H4Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/>
+              <circle cx="17" cy="7" r="1.4" stroke="currentColor" stroke-width="1.5"/>
+            </svg>
+            <span>Gorovja</span>
+          </button>
+          <div class="menu-sep"></div>
+          <button id="btnImportWishlist" class="menu-item" type="button">
+            <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+              <path d="M12 4v10M8 10l4 4 4-4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            <span>Uvozi seznam</span>
+          </button>
+          <button id="btnExportWishlist" class="menu-item" type="button">
+            <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+              <path d="M12 14V4M8 8l4-4 4 4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            <span>Izvozi seznam</span>
+          </button>
+          <div class="menu-sep"></div>
+          <p class="menu-user-name" id="wlMenuUserName">&nbsp;</p>
+          <p class="menu-user-email" id="wlMenuUserEmail">&nbsp;</p>
+          <button id="wlSignoutBtn" class="menu-item menu-item-danger" type="button">
+            <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="m16 17 5-5-5-5M21 12H9" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            <span>Odjava</span>
+          </button>
+        </div>
+      </div>
+    </div>
   </div>
 
   <div id="wishlistBrowse">
-    <button id="btnAddDest" class="option-btn area-add-btn" type="button">
-      <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-        <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.7"/>
-        <path d="M12 8v8M8 12h8" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
-      </svg>
-      <span>Dodaj destinacijo</span>
-    </button>
-    <button id="btnImportWishlist" class="option-btn area-add-btn" type="button">
-      <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-        <path d="M12 4v10M8 10l4 4 4-4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
-        <path d="M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
-      </svg>
-      <span>Uvozi seznam</span>
-    </button>
-    <button id="btnExportWishlist" class="option-btn area-add-btn" type="button">
-      <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-        <path d="M12 14V4M8 8l4-4 4 4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
-        <path d="M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
-      </svg>
-      <span>Izvozi seznam</span>
-    </button>
+   <aside class="wl-side">
     <input id="importWishlistFile" type="file" accept="application/json,.json" hidden>
-    <hr class="panel-divider panel-divider-accent">
 
-    <div id="wishlistTabs" class="wl-tabs"></div>
-    <div id="wishlistSubtabs" class="wl-subtabs"></div>
-    <div id="wishlistList" class="area-list"></div>
-    <p id="wishlistEmpty" class="saved-empty">Ni še destinacij. Dodaj prvo.</p>
+    <div id="wlFilters" class="wl-filters">
+      <div class="wl-filter-group" data-filter="country">
+        <button class="wl-filter-head" type="button" aria-expanded="true">
+          <span class="wl-filter-label">Država</span>
+          <svg class="wl-filter-chevron" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </button>
+        <div id="wishlistTabs" class="wl-tabs"></div>
+      </div>
+      <div class="wl-filter-group" data-filter="region">
+        <button class="wl-filter-head" type="button" aria-expanded="true">
+          <span class="wl-filter-label">Regija</span>
+          <svg class="wl-filter-chevron" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </button>
+        <div id="wishlistSubtabs" class="wl-subtabs"></div>
+      </div>
+      <div class="wl-filter-group" id="wlTypeGroup" data-filter="type">
+        <button class="wl-filter-head" type="button" aria-expanded="true">
+          <span class="wl-filter-label">Vrsta</span>
+          <svg class="wl-filter-chevron" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </button>
+        <div id="wishlistTypeTabs" class="wl-subtabs"></div>
+      </div>
+    </div>
+   </aside>
+
+    <div class="wl-browse-inner">
+      <div id="wishlistList" class="area-list"></div>
+      <p id="wishlistEmpty" class="saved-empty">Ni še destinacij. Dodaj prvo.</p>
+    </div>
   </div>
 
   <div id="wishlistFormView" class="wl-form" hidden>
