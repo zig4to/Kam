@@ -51,6 +51,19 @@
   var appStarted = false;
   var pendingAuthError = null;
   var ssoAdopting = false;
+  // Prava prijava (obrazec / SSO / po ponastavitvi gesla) — takrat aplikacijo
+  // vedno odpremo na naslovni strani, ne na zadnjem pogledu. Osvežitev strani
+  // z obstoječo sejo tega ne sproži (pogled se obnovi kot doslej).
+  var freshLogin = false;
+  function clearViewRestore() {
+    try {
+      localStorage.removeItem("kam:landingHidden");
+      localStorage.removeItem("kam:wlOpen");
+    } catch (e) {}
+    // razred iz vgrajene skripte v <head> (prepreči utripanje) — sicer bi
+    // "html.landing-restored .landing-overlay { display: none }" skril naslovnico
+    document.documentElement.classList.remove("landing-restored");
+  }
 
   var recovering = location.hash.indexOf("type=recovery") !== -1;
   handleHashError();
@@ -70,7 +83,7 @@
     if (!at || !rt) return Promise.resolve();
     ssoAdopting = true;
     return sb.auth.setSession({ access_token: at, refresh_token: rt })
-      .then(function () {})
+      .then(function () { freshLogin = true; })
       .catch(function () {});
   }
 
@@ -130,6 +143,7 @@
     pendingAuthError = null;
     if (!email || !pass) { errEl.textContent = "Vpiši e-pošto in geslo."; return; }
     submitBtn.disabled = true;
+    if (mode === "signin") freshLogin = true;
 
     var op = mode === "signup"
       ? sb.auth.signUp({
@@ -141,13 +155,14 @@
 
     op.then(function (res) {
       submitBtn.disabled = false;
-      if (res.error) { errEl.textContent = prevediNapako(res.error.message); return; }
+      if (res.error) { freshLogin = false; errEl.textContent = prevediNapako(res.error.message); return; }
       if (mode === "signup" && res.data && res.data.user && !res.data.session) {
         noteEl.textContent = "Račun ustvarjen. Potrdi e-pošto, nato se prijavi.";
         setMode("signin");
       }
     }).catch(function (err) {
       submitBtn.disabled = false;
+      freshLogin = false;
       errEl.textContent = prevediNapako(String((err && err.message) || err));
     });
   });
@@ -186,7 +201,7 @@
       recovering = false;
       recNote.textContent = "Geslo je spremenjeno.";
       sb.auth.getSession().then(function (r) {
-        if (r.data && r.data.session) showApp(r.data.session);
+        if (r.data && r.data.session) { freshLogin = true; showApp(r.data.session); }
         else { setMode("signin"); showAuth(); }
       });
     }).catch(function (err) {
@@ -213,11 +228,13 @@
     if (userEmailEl) userEmailEl.textContent = (user && user.email) || "";
     if (userNameEl) userNameEl.textContent = displayName(user);
     if (!appStarted && typeof window.startApp === "function") {
+      if (freshLogin) clearViewRestore();   // prijava -> vedno naslovna stran
       appStarted = true;
       window.startApp();
     } else if (appStarted && typeof window.refreshApp === "function") {
       window.refreshApp();
     }
+    freshLogin = false;
     if (window.InstallPromo) window.InstallPromo.afterLogin();
   }
 

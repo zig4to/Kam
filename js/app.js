@@ -990,16 +990,20 @@ window.startApp = function () {
 
   /* Sestavi 3x3 mrežo ploščic, izreže sličico okoli izbrane točke in nanjo
      nariše pin. Izrez je pri robu sveta lahko zamaknjen (clamp), zato pin
-     položimo na dejanski odmik točke znotraj izreza, ne kar na sredino. */
-  function makeThumbnail(lat, lng) {
-    var p = deg2num(lat, lng, THUMB_ZOOM);
+     položimo na dejanski odmik točke znotraj izreza, ne kar na sredino.
+     opts: { zoom, pin } — privzeto THUMB_ZOOM in pin narisan. */
+  function makeThumbnail(lat, lng, opts) {
+    opts = opts || {};
+    var z = opts.zoom || THUMB_ZOOM;
+    var showPin = opts.pin !== false;
+    var p = deg2num(lat, lng, z);
     var tx0 = Math.floor(p.x) - 1, ty0 = Math.floor(p.y) - 1;
     var localX = (p.x - tx0) * 256, localY = (p.y - ty0) * 256;
 
     var jobs = [];
     for (var row = 0; row < 3; row++) {
       for (var col = 0; col < 3; col++) {
-        jobs.push(loadTile(THUMB_ZOOM, tx0 + col, ty0 + row, col, row));
+        jobs.push(loadTile(z, tx0 + col, ty0 + row, col, row));
       }
     }
 
@@ -1018,10 +1022,20 @@ window.startApp = function () {
       out.width = THUMB_W; out.height = THUMB_H;
       var octx = out.getContext('2d');
       octx.drawImage(big, sx, sy, THUMB_W, THUMB_H, 0, 0, THUMB_W, THUMB_H);
-      drawPin(octx, localX - sx, localY - sy);
+      if (showPin) drawPin(octx, localX - sx, localY - sy);
       try { return out.toDataURL('image/jpeg', 0.75); }
       catch (e) { return null; }
     });
+  }
+
+  /* Približno središče slovenske statistične regije (povprečje točk zunanjega
+     obroča) — za izsek zemljevida, ko destinacija nima koordinat. */
+  function regionCentroid(name) {
+    var rings = window.SI_REGIONS && window.SI_REGIONS[name];
+    if (!rings || !rings.length || !rings[0].length) return null;
+    var ring = rings[0], sx = 0, sy = 0, n = ring.length;
+    for (var i = 0; i < n; i++) { sx += ring[i][0]; sy += ring[i][1]; }
+    return { lat: sy / n, lng: sx / n };
   }
 
   // ------------------------------------------------ samodejna slika za kartico
@@ -1030,8 +1044,11 @@ window.startApp = function () {
      Openverse (po imenu), na koncu izsek zemljevida. Shranimo le URL (polje
      rec.image); izsek zemljevida nima URL-ja, zato gre kot data: URI.
      rec.image === '' pomeni "poskusili, nič"; do ponovnega poskusa preteče
-     WL_IMG_MAXAGE. Zahtevo za posamezno destinacijo naredimo enkrat. */
+     WL_IMG_MAXAGE. Zahtevo za posamezno destinacijo naredimo enkrat.
+     WL_IMG_VER povečaj, ko se spremenijo viri/poizvedbe — takrat se prazni
+     zapisi enkrat na novo poskusijo (ne glede na WL_IMG_MAXAGE). */
   var WL_IMG_MAXAGE = 30 * 864e5;
+  var WL_IMG_VER = 2;
   var wlImgInflight = {};
 
   function fetchJson(url, ms) {
@@ -1053,8 +1070,9 @@ window.startApp = function () {
       url = base + '&generator=geosearch&ggslimit=6&ggsradius=1000' +
         '&ggscoord=' + rec.lat + '%7C' + rec.lng;
     } else {
-      var q = rec.name + ' ' + (rec.region || rec.country || '');
-      url = base + '&generator=search&gsrlimit=4&gsrsearch=' + encodeURIComponent(q.trim());
+      // Samo ime: Wikipedijino iskanje zahteva ujemanje vseh besed, zato dodana
+      // regija/država vrne 0 zadetkov (npr. "Slap Savica Gorenjska").
+      url = base + '&generator=search&gsrlimit=5&gsrsearch=' + encodeURIComponent(rec.name);
     }
     return fetchJson(url).then(function (data) {
       var pages = data && data.query && data.query.pages;
@@ -1071,9 +1089,11 @@ window.startApp = function () {
   }
 
   function openverseThumb(rec) {
-    var q = rec.name + ' ' + (rec.region || rec.country || '');
+    // Openverse rangira po relevantnosti (ne zahteva vseh besed), zato je država
+    // koristna za razdvoumljanje; regije ne dodajamo (preveč obskurna za oznake).
+    var q = (rec.name + ' ' + (rec.country || '')).trim();
     var url = 'https://api.openverse.org/v1/images/?page_size=3&mature=false&q=' +
-      encodeURIComponent(q.trim());
+      encodeURIComponent(q);
     return fetchJson(url).then(function (data) {
       var r = data && data.results && data.results[0];
       return r ? (r.thumbnail || r.url || null) : null;
@@ -1093,13 +1113,21 @@ window.startApp = function () {
       steps.push(function () { return wikiThumb('en', 'name', rec).then(tag('wikipedia')); });
       steps.push(function () { return openverseThumb(rec).then(tag('openverse')); });
     }
-    if (hasCoords) {
-      steps.push(function () {
-        return makeThumbnail(rec.lat, rec.lng).then(function (u) {
-          return u ? { url: u, src: 'map' } : null;
-        }).catch(function () { return null; });
-      });
-    }
+    // Zadnja rezerva: izsek zemljevida, da kartica dobi vsaj nekaj.
+    // S koordinatami -> s pinom; brez njih, a s slovensko regijo -> središče
+    // regije, bolj oddaljeno in brez pina (položaj je le približen).
+    steps.push(function () {
+      var mk = null;
+      if (hasCoords) {
+        mk = makeThumbnail(rec.lat, rec.lng);
+      } else if (rec.country === 'Slovenija') {
+        var c = regionCentroid(rec.region);
+        if (c) mk = makeThumbnail(c.lat, c.lng, { zoom: 9, pin: false });
+      }
+      if (!mk) return null;
+      return mk.then(function (u) { return u ? { url: u, src: 'map' } : null; })
+        .catch(function () { return null; });
+    });
     function tag(src) {
       return function (u) { return u ? { url: u, src: src } : null; };
     }
@@ -1114,7 +1142,8 @@ window.startApp = function () {
     if (rec.image) { imgEl.src = rec.image; rowEl.classList.add('has-img'); return; }
     if (wlExplore) return;                       // tuj seznam — ne pišemo v tuje zapise
     if (wlImgInflight[rec.id]) return;
-    if (rec.image === '' && Date.now() - (rec.imgTs || 0) < WL_IMG_MAXAGE) return;
+    if (rec.image === '' && rec.imgVer === WL_IMG_VER &&
+        Date.now() - (rec.imgTs || 0) < WL_IMG_MAXAGE) return;
 
     wlImgInflight[rec.id] = true;
     resolveCardImage(rec).then(function (res) {
@@ -1125,6 +1154,7 @@ window.startApp = function () {
       it.image = res ? res.url : '';
       it.imgSrc = res ? res.src : undefined;
       it.imgTs = Date.now();
+      it.imgVer = WL_IMG_VER;
       persistWishlist(list);
       if (res && rowEl.isConnected) {
         imgEl.src = res.url;
@@ -2104,15 +2134,6 @@ window.startApp = function () {
     if (wlMenuDropdown.hidden) return;
     if (wlMenuDropdown.contains(e.target) || btnWlUser.contains(e.target)) return;
     closeWlUserMenu();
-  });
-  document.getElementById('wlMenuSaved').addEventListener('click', function () {
-    closeWlUserMenu(); closeWishlistDrawer(); openSavedDrawer();
-  });
-  document.getElementById('wlMenuAreas').addEventListener('click', function () {
-    closeWlUserMenu(); closeWishlistDrawer(); openSavedAreasDrawer();
-  });
-  document.getElementById('wlMenuMountains').addEventListener('click', function () {
-    closeWlUserMenu(); closeWishlistDrawer(); openSavedMountainsDrawer();
   });
   document.getElementById('wlSignoutBtn').addEventListener('click', function () {
     rememberWishlistOpen(false);
