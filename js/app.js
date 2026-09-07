@@ -1024,6 +1024,115 @@ window.startApp = function () {
     });
   }
 
+  // ------------------------------------------------ samodejna slika za kartico
+  /* Vsaka destinacija na seznamu "Vem Kam!" dobi sliko brez ročnega nalaganja:
+     najprej fotografija z Wikipedije (po koordinatah, nato po imenu), nato
+     Openverse (po imenu), na koncu izsek zemljevida. Shranimo le URL (polje
+     rec.image); izsek zemljevida nima URL-ja, zato gre kot data: URI.
+     rec.image === '' pomeni "poskusili, nič"; do ponovnega poskusa preteče
+     WL_IMG_MAXAGE. Zahtevo za posamezno destinacijo naredimo enkrat. */
+  var WL_IMG_MAXAGE = 30 * 864e5;
+  var wlImgInflight = {};
+
+  function fetchJson(url, ms) {
+    var ctrl = new AbortController();
+    var t = setTimeout(function () { ctrl.abort(); }, ms || 7000);
+    return fetch(url, { signal: ctrl.signal, referrerPolicy: 'no-referrer' })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .catch(function () { return null; })
+      .then(function (v) { clearTimeout(t); return v; });
+  }
+
+  /* Prvi članek s sličico iz Wikipedijinega Action API (prop=pageimages).
+     kind: 'geo' -> generator=geosearch okoli koordinat; 'name' -> generator=search. */
+  function wikiThumb(lang, kind, rec) {
+    var base = 'https://' + lang + '.wikipedia.org/w/api.php?action=query&format=json&origin=*' +
+      '&prop=pageimages&piprop=thumbnail&pithumbsize=640&pilimit=10';
+    var url;
+    if (kind === 'geo') {
+      url = base + '&generator=geosearch&ggslimit=6&ggsradius=1000' +
+        '&ggscoord=' + rec.lat + '%7C' + rec.lng;
+    } else {
+      var q = rec.name + ' ' + (rec.region || rec.country || '');
+      url = base + '&generator=search&gsrlimit=4&gsrsearch=' + encodeURIComponent(q.trim());
+    }
+    return fetchJson(url).then(function (data) {
+      var pages = data && data.query && data.query.pages;
+      if (!pages) return null;
+      var best = null;
+      Object.keys(pages).forEach(function (k) {
+        var p = pages[k];
+        if (!p.thumbnail || !p.thumbnail.source) return;
+        // pri iskanju po imenu spoštuj vrstni red (index), pri geosearch vzemi prvo
+        if (!best || (p.index != null && best.index != null && p.index < best.index)) best = p;
+      });
+      return best ? best.thumbnail.source : null;
+    });
+  }
+
+  function openverseThumb(rec) {
+    var q = rec.name + ' ' + (rec.region || rec.country || '');
+    var url = 'https://api.openverse.org/v1/images/?page_size=3&mature=false&q=' +
+      encodeURIComponent(q.trim());
+    return fetchJson(url).then(function (data) {
+      var r = data && data.results && data.results[0];
+      return r ? (r.thumbnail || r.url || null) : null;
+    });
+  }
+
+  /* Vrne Promise<{url, src} | null>. Viri po vrsti; prvi zadetek zmaga. */
+  function resolveCardImage(rec) {
+    var hasCoords = isNum(rec.lat) && isNum(rec.lng);
+    var steps = [];
+    if (hasCoords) {
+      steps.push(function () { return wikiThumb('sl', 'geo', rec).then(tag('wikipedia')); });
+      steps.push(function () { return wikiThumb('en', 'geo', rec).then(tag('wikipedia')); });
+    }
+    if (rec.name) {
+      steps.push(function () { return wikiThumb('sl', 'name', rec).then(tag('wikipedia')); });
+      steps.push(function () { return wikiThumb('en', 'name', rec).then(tag('wikipedia')); });
+      steps.push(function () { return openverseThumb(rec).then(tag('openverse')); });
+    }
+    if (hasCoords) {
+      steps.push(function () {
+        return makeThumbnail(rec.lat, rec.lng).then(function (u) {
+          return u ? { url: u, src: 'map' } : null;
+        }).catch(function () { return null; });
+      });
+    }
+    function tag(src) {
+      return function (u) { return u ? { url: u, src: src } : null; };
+    }
+    return steps.reduce(function (chain, step) {
+      return chain.then(function (res) { return res || step().catch(function () { return null; }); });
+    }, Promise.resolve(null));
+  }
+
+  /* Poskrbi, da ima kartica sliko: nastavi jo, če je znana; sicer jo poišče,
+     shrani v zapis in posodobi le to kartico (brez ponovnega izrisa seznama). */
+  function ensureCardImage(rec, imgEl, rowEl) {
+    if (rec.image) { imgEl.src = rec.image; rowEl.classList.add('has-img'); return; }
+    if (wlExplore) return;                       // tuj seznam — ne pišemo v tuje zapise
+    if (wlImgInflight[rec.id]) return;
+    if (rec.image === '' && Date.now() - (rec.imgTs || 0) < WL_IMG_MAXAGE) return;
+
+    wlImgInflight[rec.id] = true;
+    resolveCardImage(rec).then(function (res) {
+      delete wlImgInflight[rec.id];
+      var list = loadWishlist();
+      var it = list.find(function (x) { return x.id === rec.id; });
+      if (!it) return;
+      it.image = res ? res.url : '';
+      it.imgSrc = res ? res.src : undefined;
+      it.imgTs = Date.now();
+      persistWishlist(list);
+      if (res && rowEl.isConnected) {
+        imgEl.src = res.url;
+        rowEl.classList.add('has-img');
+      }
+    }).catch(function () { delete wlImgInflight[rec.id]; });
+  }
+
   /* Razdalja v metrih (ekvirektangularna aproksimacija — na teh razdaljah
      povsem zadošča in je bistveno cenejša od haversine). */
   function distanceMeters(lat1, lng1, lat2, lng2) {
@@ -1504,6 +1613,7 @@ window.startApp = function () {
   var btnLandingRandom = document.getElementById('btnLandingRandom');
   var btnLandingWishlist = document.getElementById('btnLandingWishlist');
   var btnHome = document.getElementById('btnHome');
+  var btnMapWishlist = document.getElementById('btnMapWishlist');
 
   /* Ali je začetni zaslon skrit (smo na zemljevidu / "Pojdi naključno") — se
      ohrani po osvežitvi, da nas refresh ne vrže nazaj na začetno stran. */
@@ -1833,7 +1943,7 @@ window.startApp = function () {
 
   wlExploreBack.addEventListener('click', exitExplore);
 
-  /* Nastavitev "Prikaži točke ostalim" v uporabniškem meniju. */
+  /* Nastavitev "Deljenje seznama" v uporabniškem meniju. */
   function syncShareCheckbox() {
     if (chkShareLists && window.KamData && KamData.isShared) {
       chkShareLists.checked = KamData.isShared();
@@ -1889,6 +1999,7 @@ window.startApp = function () {
   btnWishlistClose.addEventListener('click', closeWishlistDrawer);
   wishlistBackdrop.addEventListener('click', closeWishlistDrawer);
   btnLandingWishlist.addEventListener('click', openWishlistDrawer);
+  if (btnMapWishlist) btnMapWishlist.addEventListener('click', openWishlistDrawer);
   menuItemWishlist.addEventListener('click', function () {
     closeMenu();
     openWishlistDrawer();
@@ -2057,6 +2168,14 @@ window.startApp = function () {
     var row = document.createElement('div');
     row.className = 'area-row wl-row' + (!readOnly && rec.visited ? ' visited' : '');
 
+    // Samodejna slika kraja (pas na vrhu kartice). Vedno vstavimo <img>, razred
+    // .has-img (in s tem prikaz) doda ensureCardImage, ko je vir znan.
+    var img = document.createElement('img');
+    img.className = 'wl-row-img';
+    img.loading = 'lazy';
+    img.alt = '';
+    row.appendChild(img);
+
     var main = document.createElement('div');
     main.className = 'wl-row-main';
 
@@ -2176,6 +2295,7 @@ window.startApp = function () {
       });
     });
 
+    ensureCardImage(rec, img, row);
     return row;
   }
 
@@ -2542,6 +2662,10 @@ window.startApp = function () {
     if (wlEditId !== null) {
       var it = list.find(function (x) { return x.id === wlEditId; });
       if (it) {
+        // Ime ali koordinate spremenjeni -> zavrzi staro sliko, da se poišče znova.
+        if (it.name !== name || it.lat !== lat || it.lng !== lng) {
+          delete it.image; delete it.imgSrc; delete it.imgTs;
+        }
         it.name = name; it.country = country; it.region = region;
         it.lat = lat; it.lng = lng; it.types = types;
       }

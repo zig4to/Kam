@@ -86,9 +86,18 @@ body {
 .btn-compass:active { transform: scale(0.96); }
 .btn-compass svg { width: 20px; height: 20px; flex-shrink: 0; }
 
-/* Poravnano desno zgoraj in izvzeto iz sredinjenja, da gumb za kompas ostane
-   natanko na sredini vrstice. .menu-wrap je hkrati sidro za spustni meni. */
-.menu-wrap { position: absolute; top: 10px; right: 14px; }
+/* Desni sklop (nazaj / Vem Kam! / meni) je izvzet iz sredinjenja, da gumb za
+   kompas ostane natanko na sredini vrstice. */
+.topbar-right {
+  position: absolute;
+  top: 10px;
+  right: 14px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+/* .menu-wrap je sidro za spustni meni. */
+.menu-wrap { position: relative; }
 
 /* Gumba "nazaj" in "meni" — prosojna siva podlaga (odtenek --bg-card), brez
    zameglitve, z modro obrobo in ikono. */
@@ -113,7 +122,7 @@ body {
 /* Na namizju (miška, dovolj širok zaslon) so gumbi večji — na dotik vezanih
    napravah je trenutna velikost že ravno prav za prst. */
 @media (min-width: 640px) and (pointer: fine) {
-  .menu-wrap { right: 20px; }
+  .topbar-right { right: 20px; gap: 8px; }
   .btn-compass { height: 46px; padding: 0 26px 0 18px; font-size: 15px; gap: 9px; }
   .btn-compass svg { width: 22px; height: 22px; }
 
@@ -121,11 +130,20 @@ body {
   .btn-menu svg { width: 22px; height: 22px; }
 }
 
+/* Mobilno: gumb "Vrži kompas" na levo stran zaslona; Leafletovi gumbi za
+   povečavo (in namig za dva prsta) se umaknejo pod njega. */
+@media (max-width: 639px), (pointer: coarse) {
+  #topbar { justify-content: flex-start; }
+  .leaflet-top.leaflet-left { top: 54px; }
+  .two-finger-hint { top: 122px; }
+}
+
 .menu-dropdown {
   position: absolute;
   top: calc(100% + 8px);
   right: 0;
   min-width: 200px;
+  box-sizing: border-box;
   background: var(--bg-card);
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 14px;
@@ -138,6 +156,7 @@ body {
   align-items: center;
   gap: 10px;
   width: 100%;
+  box-sizing: border-box;
   background: none;
   border: none;
   color: var(--text);
@@ -151,12 +170,13 @@ body {
 .menu-item:hover { background: rgba(255, 255, 255, 0.08); }
 .menu-item svg { width: 18px; height: 18px; flex-shrink: 0; color: var(--accent-blue); }
 
-/* Stikalo v meniju (npr. "Prikaži točke ostalim"). */
+/* Stikalo v meniju (npr. "Deljenje seznama"). */
 .menu-toggle {
   display: flex;
   align-items: center;
   gap: 10px;
   width: 100%;
+  box-sizing: border-box;
   border-radius: 9px;
   padding: 10px;
   font-size: 14px;
@@ -166,7 +186,8 @@ body {
 }
 .menu-toggle:hover { background: rgba(255, 255, 255, 0.08); }
 .menu-toggle svg { width: 18px; height: 18px; flex-shrink: 0; color: var(--accent-blue); }
-.menu-toggle > span:first-of-type { flex: 1; }
+/* besedilo se ne razteza — stikalo pride takoj za njim */
+.menu-toggle > span:first-of-type { flex: 0 1 auto; min-width: 0; }
 .menu-toggle input { position: absolute; opacity: 0; width: 0; height: 0; }
 .menu-toggle-box {
   flex-shrink: 0;
@@ -706,17 +727,11 @@ html.landing-restored .landing-overlay { display: none; }
 }
 .landing-btn + .landing-btn { margin-top: 10px; }
 
-/* Gumb "nazaj" zgoraj desno, tik levo od menija (levo zgoraj so Leafletovi
-   gumbi za povečavo). Videz podeduje od skupnega pravila .btn-menu, .btn-home. */
-.btn-home {
-  position: absolute;
-  right: 58px;
-  top: 10px;
-}
+/* Gumba "nazaj" in "Vem Kam!" sta v .topbar-right, levo od menija (levo zgoraj so
+   Leafletovi gumbi za povečavo). Videz podedujeta od pravila .btn-menu, .btn-home. */
 .btn-home svg { width: 20px; height: 20px; flex-shrink: 0; }
 
 @media (min-width: 640px) and (pointer: fine) {
-  .btn-home { right: 78px; }
   .btn-home svg { width: 23px; height: 23px; }
 }
 
@@ -857,7 +872,8 @@ html.landing-restored .landing-overlay { display: none; }
 }
 .wl-user-btn:hover { background: rgba(56, 189, 248, 0.22); }
 .wl-user-btn svg { width: 18px; height: 18px; }
-.wl-menu-dropdown { z-index: 30; }
+/* širina se prilagodi vsebini, a nikoli čez rob zaslona */
+.wl-menu-dropdown { z-index: 30; width: max-content; max-width: calc(100vw - 20px); }
 
 /* --- levi stolpec / filtri
    Na mobilnem .wl-side ne ustvari lastne škatle (display: contents) — filtri in
@@ -1075,6 +1091,43 @@ html.landing-restored .landing-overlay { display: none; }
   right: 10px;
 }
 
+/* Samodejna slika kraja — desna tretjina kartice, znotraj roba.
+   <img class="wl-row-img"> je vedno v DOM; vidna je šele z razredom .has-img. */
+.wl-row-img { display: none; }
+/* Vse kartice s sliko imajo enako fiksno višino, da je seznam poravnan. */
+#wishlistList .wl-row.has-img {
+  height: 96px;
+  min-height: 0;
+  overflow: hidden;
+}
+#wishlistList .wl-row.has-img .wl-row-img {
+  display: block;
+  order: 3;                 /* v DOM je prvi otrok — potisni sliko na desno */
+  flex: 0 0 33%;
+  max-width: 170px;
+  align-self: stretch;
+  height: 100%;
+  min-width: 0;
+  /* Škatla je fiksna (33% širine x višina kartice); karkoli večjega se odreže. */
+  object-fit: cover;
+  object-position: center;
+  border-radius: 10px;
+  background: #0a0c10;
+}
+/* dolgo ime skrči na dve vrstici, da ne prebije fiksne višine */
+#wishlistList .wl-row.has-img .area-row-name {
+  padding-right: 0;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+/* gumba uredi/izbriši ležita čez zgornji desni kot slike — rahla podlaga za čitljivost */
+#wishlistList .wl-row.has-img .area-row-actions {
+  background: rgba(10, 12, 16, 0.55);
+  border-radius: 8px;
+}
+
 /* Regijske skupine na seznamu — display: contents, da kartice ostanejo v mreži. */
 .wl-region-group { display: contents; }
 
@@ -1279,6 +1332,9 @@ html.landing-restored .landing-overlay { display: none; }
     padding: 20px 24px calc(36px + env(safe-area-inset-bottom));
   }
   #wishlistList { grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 12px; }
+  /* ožja kartica (slika desno) — koordinate v svojo vrsto pod značke */
+  #wishlistList .wl-meta-line { flex-direction: column; align-items: flex-start; gap: 4px; }
+  #wishlistList .wl-row.has-img { height: 104px; }
 }
 
 /* ------------------------------------------------------------ prijava */
