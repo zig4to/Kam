@@ -1234,21 +1234,65 @@ window.startApp = function () {
     return svg;
   }
 
-  /* Ikona za vrsto destinacije (za značke na karticah). Neznane/lastne vrste
-     dobijo splošno oznako (kartografska bucika). */
+  /* Ikona za vrsto destinacije — glede na vrsto. Vgrajene vrste imajo svojo
+     ikono, lastne pa dobijo ustrezno po ključnih besedah v imenu; če nič ne
+     ustreza, splošna oznaka (kartografska bucika). Ista ikona v obrazcu in
+     na kartici. */
   var TYPE_ICON_PATHS = {
     vrh: '<path d="m2.5 18 5-9 3.3 4.8 2-3L21.5 18H2.5Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><circle cx="17.5" cy="7" r="1.3" stroke="currentColor" stroke-width="1.4"/>',
     slap: '<path d="M5 5h14" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><path d="M8 5v10M12 5v12M16 5v10" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><path d="M4 20c2 0 2-1.8 4-1.8s2 1.8 4 1.8 2-1.8 4-1.8 2 1.8 4 1.8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>',
     jezero: '<path d="M3 10c2.4 0 2.4 2 4.8 2S10.2 10 12.6 10 15 12 17.4 12 19.8 10 21 10" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><path d="M3 15c2.4 0 2.4 2 4.8 2S10.2 15 12.6 15 15 17 17.4 17 19.8 15 21 15" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>',
-    soteska: '<path d="M6 3v13l2.5 5M18 3v13l-2.5 5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/><path d="M9 21h6" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>'
+    soteska: '<path d="M6 3v13l2.5 5M18 3v13l-2.5 5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/><path d="M9 21h6" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>',
+    jama: '<path d="M3 21v-4a9 9 0 0 1 18 0v4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><path d="M3 21h18" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><path d="M9 21v-3a3 3 0 0 1 6 0v3" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>',
+    grad: '<path d="M5 21V8l2 1V6h3v3l2-1 2 1V6h3v3l2-1v13" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M4 21h16" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><path d="M10 21v-4h4v4" stroke="currentColor" stroke-width="1.6"/>',
+    cerkev: '<path d="M12 2v5M9.5 4.2h5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><path d="M6 21V10l6-4 6 4v11" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M5 21h14" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><path d="M10 21v-4a2 2 0 0 1 4 0v4" stroke="currentColor" stroke-width="1.6"/>',
+    razgled: '<path d="M2 12s3.6-6.5 10-6.5S22 12 22 12s-3.6 6.5-10 6.5S2 12 2 12Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><circle cx="12" cy="12" r="2.6" stroke="currentColor" stroke-width="1.6"/>',
+    izvir: '<path d="M12 3s6.5 7 6.5 11a6.5 6.5 0 1 1-13 0C5.5 10 12 3 12 3Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>',
+    plaza: '<circle cx="12" cy="9" r="3.2" stroke="currentColor" stroke-width="1.6"/><path d="M12 2.6v1.6M5.8 9H4.2M19.8 9h-1.6M7.4 4.4 6.3 3.3M17.7 4.4l1-1.1" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path d="M3 19.5c2 0 2-1.6 4-1.6s2 1.6 4 1.6 2-1.6 4-1.6 2 1.6 4 1.6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>',
+    gozd: '<path d="M12 3 7 11h3l-3 5h10l-3-5h3Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M12 16v5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>',
+    reka: '<path d="M7 3c0 4-3 5-3 9s3 5 3 9" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><path d="M17 3c0 4 3 5 3 9s-3 5-3 9" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><path d="M12 6v3M12 13v3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>',
+    muzej: '<path d="M3 9 12 4l9 5" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M3 9h18M4 21h16" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><path d="M6 9v10M10 9v10M14 9v10M18 9v10" stroke="currentColor" stroke-width="1.6"/>',
+    koca: '<path d="m3 11 9-7 9 7" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M6 9.5V20h12V9.5" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M10 20v-5h4v5" stroke="currentColor" stroke-width="1.6"/>',
+    most: '<path d="M2 13h20" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><path d="M4 13c0-4 3-4.5 3-4.5M20 13c0-4-3-4.5-3-4.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><path d="M3 13v5M21 13v5M8.5 13v5M15.5 13v5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>'
   };
   var TYPE_ICON_FALLBACK = '<path d="M12 21s6-6 6-11a6 6 0 1 0-12 0c0 5 6 11 6 11Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><circle cx="12" cy="10" r="2" stroke="currentColor" stroke-width="1.6"/>';
+  var TYPE_ICON_KEYWORDS = [
+    [/koca|koce|bivak|zaveti|planinsk\w* dom|kmetij/, 'koca'],
+    [/vrh|gora|gorsk|hrib|greben|masiv/, 'vrh'],
+    [/slap/, 'slap'],
+    [/jezer|ribnik|mlaka|lagun/, 'jezero'],
+    [/sotesk|korit|kanjon|vintgar|klisur|tolmun|grap/, 'soteska'],
+    [/jama|brezno|podzem|spilj/, 'jama'],
+    [/grad|razvalin|utrdb|dvorec|palac/, 'grad'],
+    [/cerkev|cerkv|crkv|kapel|samostan|bazilik|svetisc|romars|katedral/, 'cerkev'],
+    [/razgled|panoram|pogled|vista|belveder|stolp/, 'razgled'],
+    [/izvir|vrelec|studenec|sotocj|terma|toplic/, 'izvir'],
+    [/plaz|kopalis|obala|morj|zaliv/, 'plaza'],
+    [/gozd|drevo|park|arboretum|drevored/, 'gozd'],
+    [/reka|potok|struga|kanal|rijek/, 'reka'],
+    [/muzej|galerij|razstav|spomenik|kip|obelisk/, 'muzej'],
+    [/most|brv/, 'most']
+  ];
+  function normType(s) {
+    return String(s || '').toLowerCase()
+      .normalize('NFD').replace(/[̀-ͯ]/g, '')
+      .replace(/đ/g, 'd');
+  }
+  function iconKeyForType(key) {
+    var k = normType(key);
+    if (TYPE_ICON_PATHS[k]) return k;
+    for (var i = 0; i < TYPE_ICON_KEYWORDS.length; i++) {
+      if (TYPE_ICON_KEYWORDS[i][0].test(k)) return TYPE_ICON_KEYWORDS[i][1];
+    }
+    return null;
+  }
   function typeIcon(key) {
+    var ik = iconKeyForType(key);
     var svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
     svg.setAttribute('viewBox', '0 0 24 24');
     svg.setAttribute('fill', 'none');
     svg.setAttribute('aria-hidden', 'true');
-    svg.innerHTML = TYPE_ICON_PATHS[key] || TYPE_ICON_FALLBACK;
+    svg.innerHTML = (ik && TYPE_ICON_PATHS[ik]) || TYPE_ICON_FALLBACK;
     return svg;
   }
 
@@ -1497,8 +1541,11 @@ window.startApp = function () {
   var WL_COUNTRIES = ['Slovenija', 'Italija', 'Avstrija', 'Hrvaška'];
   var WL_ALL = '__all__';   // "izbrano vse" za regijo / vrsto v filtrih
   var COUNTRY_REGIONS = {
-    'Slovenija': ['Gorenjska', 'Štajerska', 'Koroška', 'Primorska', 'Notranjska',
-      'Dolenjska', 'Bela krajina', 'Prekmurje', 'Prlekija', 'Zasavje', 'Osrednja Slovenija'],
+    // 12 statističnih regij (SURS). Regija se samodejno določi iz koordinat
+    // (Overpass is_in -> admin meje); brez koordinat jo izbereš ročno.
+    'Slovenija': ['Pomurska', 'Podravska', 'Koroška', 'Savinjska', 'Zasavska',
+      'Posavska', 'Jugovzhodna Slovenija', 'Osrednjeslovenska', 'Gorenjska',
+      'Primorsko-notranjska', 'Goriška', 'Obalno-kraška'],
     'Italija': ['Furlanija - Julijska krajina', 'Benečija', 'Tridentinsko - Zgornje Poadižje',
       'Lombardija', 'Piemont', 'Dolina Aoste', 'Ligurija', 'Emilija - Romanja', 'Toskana',
       'Umbrija', 'Marke', 'Lacij', 'Abruci', 'Molize', 'Kampanija', 'Apulija', 'Bazilikata',
@@ -1552,28 +1599,81 @@ window.startApp = function () {
        "46.3190927, 14.7246127"        (pika = decimalka, vejica = ločilo)
        "46,3190927°N 14,7246127°E"     (vejica = decimalka, oznake polobl)
        "46,3190927, 14,7246127"        (vejica = decimalka in ločilo)
+       "46°16′25″N, 13°48′44″E"        (stopinje/minute/sekunde)
        vrstni red N/E ni pomemben; S in W dasta negativno vrednost. */
+  function round7(n) { return Math.round(n * 1e7) / 1e7; }   // ~1 cm natančnost
   function parseLatLng(raw) {
     if (!raw) return null;
-    var s = String(raw).trim().toUpperCase().replace(/°/g, ' ');
+    var s = String(raw).trim().toUpperCase()
+      .replace(/º/g, '°')      // º -> °
+      .replace(/[′’]/g, "'")   // ′ ’ -> '
+      .replace(/[″”]/g, '"');  // ″ ” -> "
 
-    var toks = s.match(/-?\d+(?:[.,]\d+)?\s*[NSEW]/g);
-    if (toks && toks.length === 2) {
-      var lat = null, lng = null;
-      toks.forEach(function (t) {
-        var mm = t.match(/(-?\d+(?:[.,]\d+)?)\s*([NSEW])/);
-        var v = Math.abs(parseFloat(mm[1].replace(',', '.')));
-        if (mm[2] === 'S' || mm[2] === 'W') v = -v;
-        if (mm[2] === 'N' || mm[2] === 'S') lat = v; else lng = v;
-      });
+    function assign(lat, lng) {
       return (isFinite(lat) && isFinite(lng)) ? { lat: lat, lng: lng } : null;
     }
+    function place(v, h, o) {
+      if (h === 'S' || h === 'W') v = -Math.abs(v); else v = Math.abs(v);
+      if (h === 'N' || h === 'S') o.lat = v; else o.lng = v;
+    }
 
-    var nums = s.replace(/[NSEW]/g, ' ').match(/-?\d+(?:[.,]\d+)?/g) || [];
+    // -- stopinje/minute(/sekunde): 46°16'25"N   46° 16' 25.5" N   46°16.5'N
+    var dmsRe = /(-?\d+)\s*°\s*(\d+(?:[.,]\d+)?)\s*'\s*(?:(\d+(?:[.,]\d+)?)\s*"?\s*)?([NSEW])/g;
+    var dms = s.match(dmsRe);
+    if (dms && dms.length === 2) {
+      var o1 = {};
+      dms.forEach(function (t) {
+        var m = t.match(/(-?\d+)\s*°\s*(\d+(?:[.,]\d+)?)\s*'\s*(?:(\d+(?:[.,]\d+)?)\s*"?\s*)?([NSEW])/);
+        var deg = Math.abs(parseFloat(m[1]));
+        var min = parseFloat(m[2].replace(',', '.'));
+        var sec = m[3] ? parseFloat(m[3].replace(',', '.')) : 0;
+        place(deg + min / 60 + sec / 3600, m[4], o1);
+      });
+      return assign(o1.lat, o1.lng);
+    }
+
+    // -- decimalne stopinje z oznakami polobl: 46,3190927°N 14,7246127°E
+    var d = s.replace(/°/g, ' ');
+    var toks = d.match(/-?\d+(?:[.,]\d+)?\s*[NSEW]/g);
+    if (toks && toks.length === 2) {
+      var o2 = {};
+      toks.forEach(function (t) {
+        var mm = t.match(/(-?\d+(?:[.,]\d+)?)\s*([NSEW])/);
+        place(parseFloat(mm[1].replace(',', '.')), mm[2], o2);
+      });
+      return assign(o2.lat, o2.lng);
+    }
+
+    // -- brez oznak: dve decimalni števili (pika ali vejica kot decimalka)
+    var nums = d.replace(/[NSEW]/g, ' ').match(/-?\d+(?:[.,]\d+)?/g) || [];
     if (nums.length === 2) {
       var a = parseFloat(nums[0].replace(',', '.'));
       var b = parseFloat(nums[1].replace(',', '.'));
       if (isFinite(a) && isFinite(b)) return { lat: a, lng: b };
+    }
+    return null;
+  }
+
+  /* Samodejno določi slovensko statistično regijo iz koordinat — point-in-polygon
+     nad poenostavljenimi mejami (js/si-regions.js, GADM). Sinhrono, deluje tudi
+     brez povezave. Vrne ime regije ali null (npr. točka izven Slovenije). */
+  function pointInRing(lng, lat, ring) {
+    var inside = false;
+    for (var i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+      var xi = ring[i][0], yi = ring[i][1], xj = ring[j][0], yj = ring[j][1];
+      if (((yi > lat) !== (yj > lat)) &&
+          (lng < (xj - xi) * (lat - yi) / (yj - yi) + xi)) inside = !inside;
+    }
+    return inside;
+  }
+  function regionFromCoords(lat, lng) {
+    if (!isNum(lat) || !isNum(lng) || !window.SI_REGIONS) return null;
+    for (var name in window.SI_REGIONS) {
+      if (!window.SI_REGIONS.hasOwnProperty(name)) continue;
+      var polys = window.SI_REGIONS[name];
+      for (var p = 0; p < polys.length; p++) {
+        if (pointInRing(lng, lat, polys[p])) return name;
+      }
     }
     return null;
   }
@@ -1593,6 +1693,12 @@ window.startApp = function () {
   var wishlistTypeTabs = document.getElementById('wishlistTypeTabs');
   var wlTypeGroup = document.getElementById('wlTypeGroup');
   var wlRegionGroup = document.getElementById('wlRegionGroup');
+  var wlExploreGroup = document.getElementById('wlExploreGroup');
+  var wlExploreList = document.getElementById('wlExploreList');
+  var wlExploreBanner = document.getElementById('wlExploreBanner');
+  var wlExploreBannerText = document.getElementById('wlExploreBannerText');
+  var wlExploreBack = document.getElementById('wlExploreBack');
+  var chkShareLists = document.getElementById('chkShareLists');
   var wlSortRegionBtn = document.getElementById('wlSortRegion');
   var wlSortAlphaBtn = document.getElementById('wlSortAlpha');
   var btnWlFilterToggle = document.getElementById('btnWlFilterToggle');
@@ -1652,6 +1758,102 @@ window.startApp = function () {
   wlSortRegionBtn.addEventListener('click', function () { setSortMode('region'); });
   wlSortAlphaBtn.addEventListener('click', function () { setSortMode('alpha'); });
 
+  /* "Razišči ideje drugih" — gumbi oseb, ki so v nastavitvah vklopile "Prikaži
+     točke ostalim". Klik naloži njihov seznam (samo za ogled). wlExplore == null
+     pomeni: gledam svoj seznam. */
+  var wlExplore = null;   // null | { userId, name, list: [] }
+  var wlFiltersBeforeExplore = null;
+  var sharingReady = !!(window.KamData && KamData.listShared);
+
+  function exitExplore() {
+    if (!wlExplore) return;
+    wlExplore = null;
+    if (wlFiltersBeforeExplore) {
+      wlActiveCountry = wlFiltersBeforeExplore.c;
+      wlActiveRegion = wlFiltersBeforeExplore.r;
+      wlActiveType = wlFiltersBeforeExplore.t;
+      wlFiltersBeforeExplore = null;
+    }
+    renderExploreList();
+    renderWishlist();
+  }
+  function enterExplore(userId, name) {
+    if (!sharingReady) return;
+    KamData.getShared(userId).then(function (list) {
+      if (!wlExplore) {
+        wlFiltersBeforeExplore = { c: wlActiveCountry, r: wlActiveRegion, t: wlActiveType };
+      }
+      wlExplore = { userId: userId, name: name, list: Array.isArray(list) ? list : [] };
+      wlActiveCountry = WL_ALL; wlActiveRegion = WL_ALL; wlActiveType = WL_ALL;
+      renderExploreList();
+      renderWishlist();
+      var inner = wishlistSection.querySelector('.wl-browse-inner');
+      if (inner) inner.scrollTop = 0;
+    });
+  }
+
+  function renderExploreList() {
+    if (!wlExploreList) return;
+    wlExploreList.innerHTML = '';
+    if (!sharingReady) {
+      var m = document.createElement('p');
+      m.className = 'wl-explore-empty';
+      m.textContent = 'Deljenje ni na voljo.';
+      wlExploreList.appendChild(m);
+      return;
+    }
+    KamData.listShared().then(function (people) {
+      wlExploreList.innerHTML = '';
+      if (wlExplore) {
+        var mine = document.createElement('button');
+        mine.type = 'button';
+        mine.className = 'wl-explore-btn wl-explore-mine';
+        mine.textContent = 'Moj seznam';
+        mine.addEventListener('click', exitExplore);
+        wlExploreList.appendChild(mine);
+      }
+      if (!people.length) {
+        var e = document.createElement('p');
+        e.className = 'wl-explore-empty';
+        e.textContent = 'Nihče ne deli seznama.';
+        wlExploreList.appendChild(e);
+        return;
+      }
+      people.forEach(function (p) {
+        var b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'wl-explore-btn' +
+          (wlExplore && wlExplore.userId === p.userId ? ' active' : '');
+        b.textContent = 'Ideje od ' + p.name;
+        b.addEventListener('click', function () { enterExplore(p.userId, p.name); });
+        wlExploreList.appendChild(b);
+      });
+    });
+  }
+
+  wlExploreBack.addEventListener('click', exitExplore);
+
+  /* Nastavitev "Prikaži točke ostalim" v uporabniškem meniju. */
+  function syncShareCheckbox() {
+    if (chkShareLists && window.KamData && KamData.isShared) {
+      chkShareLists.checked = KamData.isShared();
+    }
+  }
+  if (chkShareLists) {
+    chkShareLists.addEventListener('change', function () {
+      if (!(window.KamData && KamData.setShare)) { chkShareLists.checked = false; return; }
+      var want = chkShareLists.checked;
+      KamData.setShare(want).then(function (ok) {
+        if (!ok) {
+          chkShareLists.checked = !want;
+          showToast('Nastavitve ni bilo mogoče shraniti.', 3000);
+        } else {
+          showToast(want ? 'Tvoj seznam je zdaj viden drugim.' : 'Deljenje izklopljeno.', 2200);
+        }
+      });
+    });
+  }
+
   // Predal zdrsne z desne čez zemljevid/naslovnico — isti vzorec kot drugi seznami.
   // Zapomni si, da je odprt, da po osvežitvi strani ostanemo tukaj (glej dno startApp).
   var WL_OPEN_KEY = 'kam:wlOpen';
@@ -1668,6 +1870,14 @@ window.startApp = function () {
     wishlistSection.classList.add('open');
     wishlistBackdrop.classList.add('open');
     rememberWishlistOpen(true);
+    if (wlExplore && wlFiltersBeforeExplore) {
+      wlActiveCountry = wlFiltersBeforeExplore.c;
+      wlActiveRegion = wlFiltersBeforeExplore.r;
+      wlActiveType = wlFiltersBeforeExplore.t;
+    }
+    wlExplore = null;              // vedno začnemo na svojem seznamu
+    wlFiltersBeforeExplore = null;
+    renderExploreList();
     renderWishlist();
   }
   function closeWishlistDrawer() {
@@ -1771,6 +1981,7 @@ window.startApp = function () {
   function openWlUserMenu() {
     wlMenuUserName.textContent = menuUserName ? menuUserName.textContent : '';
     wlMenuUserEmail.textContent = menuUserEmail ? menuUserEmail.textContent : '';
+    syncShareCheckbox();
     wlMenuDropdown.hidden = false;
     btnWlUser.setAttribute('aria-expanded', 'true');
   }
@@ -1842,25 +2053,28 @@ window.startApp = function () {
   }
 
   function buildWlRow(rec) {
+    var readOnly = !!wlExplore;   // gledam tuj seznam — brez urejanja
     var row = document.createElement('div');
-    row.className = 'area-row wl-row' + (rec.visited ? ' visited' : '');
+    row.className = 'area-row wl-row' + (!readOnly && rec.visited ? ' visited' : '');
 
     var main = document.createElement('div');
     main.className = 'wl-row-main';
 
-    var chk = document.createElement('button');
-    chk.type = 'button';
-    chk.className = 'wl-check' + (rec.visited ? ' on' : '');
-    chk.title = rec.visited ? 'Označi kot neobiskano' : 'Označi kot obiskano';
-    chk.addEventListener('click', function (e) {
-      e.stopPropagation();
-      var l = loadWishlist();
-      var it = l.find(function (x) { return x.id === rec.id; });
-      if (it) it.visited = !it.visited;
-      persistWishlist(l);
-      renderWishlist();
-    });
-    main.appendChild(chk);
+    if (!readOnly) {
+      var chk = document.createElement('button');
+      chk.type = 'button';
+      chk.className = 'wl-check' + (rec.visited ? ' on' : '');
+      chk.title = rec.visited ? 'Označi kot neobiskano' : 'Označi kot obiskano';
+      chk.addEventListener('click', function (e) {
+        e.stopPropagation();
+        var l = loadWishlist();
+        var it = l.find(function (x) { return x.id === rec.id; });
+        if (it) it.visited = !it.visited;
+        persistWishlist(l);
+        renderWishlist();
+      });
+      main.appendChild(chk);
+    }
 
     var textWrap = document.createElement('div');
     textWrap.className = 'area-row-text';
@@ -1907,41 +2121,45 @@ window.startApp = function () {
     main.appendChild(textWrap);
     row.appendChild(main);
 
-    var actions = document.createElement('div');
-    actions.className = 'area-row-actions';
+    if (!readOnly) {
+      var actions = document.createElement('div');
+      actions.className = 'area-row-actions';
 
-    var edit = document.createElement('button');
-    edit.className = 'saved-card-delete area-row-rename';
-    edit.type = 'button';
-    edit.title = 'Uredi';
-    edit.appendChild(renamePin());
-    edit.addEventListener('click', function (e) {
-      e.stopPropagation();
-      openWishlistForm(rec);
-    });
-    actions.appendChild(edit);
+      var edit = document.createElement('button');
+      edit.className = 'saved-card-delete area-row-rename';
+      edit.type = 'button';
+      edit.title = 'Uredi';
+      edit.appendChild(renamePin());
+      edit.addEventListener('click', function (e) {
+        e.stopPropagation();
+        openWishlistForm(rec);
+      });
+      actions.appendChild(edit);
 
-    var del = document.createElement('button');
-    del.className = 'saved-card-delete';
-    del.type = 'button';
-    del.title = 'Izbriši';
-    del.appendChild(deletePin());
-    del.addEventListener('click', function (e) {
-      e.stopPropagation();
-      persistWishlist(loadWishlist().filter(function (x) { return x.id !== rec.id; }));
-      renderWishlist();
-    });
-    actions.appendChild(del);
-    row.appendChild(actions);
+      var del = document.createElement('button');
+      del.className = 'saved-card-delete';
+      del.type = 'button';
+      del.title = 'Izbriši';
+      del.appendChild(deletePin());
+      del.addEventListener('click', function (e) {
+        e.stopPropagation();
+        persistWishlist(loadWishlist().filter(function (x) { return x.id !== rec.id; }));
+        renderWishlist();
+      });
+      actions.appendChild(del);
+      row.appendChild(actions);
+    }
 
     row.addEventListener('click', function () {
       if (!hasCoords) { showToast('Ni koordinat za to destinacijo.', 2500); return; }
-      // Zapomni si mesto v seznamu, da nas gumb "Nazaj" vrne točno sem.
+      // Zapomni si mesto v seznamu (in morebiten ogled tujih idej), da nas
+      // gumb "Nazaj" vrne točno sem.
       var innerEl = wishlistSection.querySelector('.wl-browse-inner');
       var savedScroll = {
         inner: innerEl ? innerEl.scrollTop : 0,
         browse: wishlistBrowse ? wishlistBrowse.scrollTop : 0
       };
+      var wasExplore = wlExplore;
       closeWishlistDrawer();
       hideLanding();
       map.flyTo([rec.lat, rec.lng], 13);
@@ -1951,6 +2169,7 @@ window.startApp = function () {
         map.closePopup();
         if (resultMarker) { map.removeLayer(resultMarker); resultMarker = null; }
         openWishlistDrawer();
+        if (wasExplore) { wlExplore = wasExplore; renderExploreList(); renderWishlist(); }
         var el = wishlistSection.querySelector('.wl-browse-inner');
         if (el) el.scrollTop = savedScroll.inner;
         if (wishlistBrowse) wishlistBrowse.scrollTop = savedScroll.browse;
@@ -1964,7 +2183,16 @@ window.startApp = function () {
      možnost "Vse" (WL_ALL). Pri "Vse regije" so vrstice združene po regijah s
      podnaslovi; sicer je spodaj še ločen razdelek "Obiskano". */
   function renderWishlist() {
-    var list = loadWishlist();
+    var exploring = !!wlExplore;
+    var vis = function (r) { return !exploring && r.visited; };   // v ogledu ne ločimo "Obiskano"
+    var list = exploring ? (wlExplore.list || []) : loadWishlist();
+
+    wishlistSection.classList.toggle('wl-explore', exploring);
+    if (wlExploreBanner) {
+      wlExploreBanner.hidden = !exploring;
+      if (exploring) wlExploreBannerText.textContent = 'Ideje od ' + wlExplore.name;
+    }
+
     var countries = wlCountries(list);
     if (wlActiveCountry !== WL_ALL && countries.indexOf(wlActiveCountry) === -1) wlActiveCountry = countries[0];
     var allCountries = wlActiveCountry === WL_ALL;
@@ -1973,8 +2201,16 @@ window.startApp = function () {
 
     var hasAny = list.length > 0;
     var alpha = wlSortMode === 'alpha';   // cel seznam po abecedi, brez regij
-    if (wlFilters) wlFilters.hidden = !hasAny;
-    if (btnWlFilterToggle) btnWlFilterToggle.hidden = !hasAny;
+    wishlistEmpty.textContent = exploring
+      ? 'Ta oseba nima deljenih destinacij.'
+      : 'Ni še destinacij. Dodaj prvo.';
+    // Filtri so vidni tudi, ko je moj seznam prazen (za "Razišči ideje drugih").
+    var showFilters = hasAny || exploring || sharingReady;
+    if (wlFilters) {
+      wlFilters.hidden = !showFilters;
+      wlFilters.classList.toggle('wl-only-explore', !hasAny && !exploring);
+    }
+    if (btnWlFilterToggle) btnWlFilterToggle.hidden = !showFilters;
     // Regija nima smisla čez vse države ali v pogledu A–Ž.
     if (wlRegionGroup) wlRegionGroup.hidden = !hasAny || alpha || allCountries;
     wishlistEmpty.hidden = hasAny;
@@ -2100,15 +2336,15 @@ window.startApp = function () {
         });
         group.appendChild(head);
 
-        recs.filter(function (r) { return !r.visited; })
+        recs.filter(function (r) { return !vis(r); })
           .forEach(function (rec) { group.appendChild(buildWlRow(rec)); });
-        recs.filter(function (r) { return r.visited; })
+        recs.filter(function (r) { return vis(r); })
           .forEach(function (rec) { group.appendChild(buildWlRow(rec)); });
         wishlistList.appendChild(group);
       });
     } else {
-      var todo = rows.filter(function (r) { return !r.visited; });
-      var done = rows.filter(function (r) { return r.visited; });
+      var todo = rows.filter(function (r) { return !vis(r); });
+      var done = rows.filter(function (r) { return vis(r); });
       todo.forEach(addRow);
       if (done.length) {
         var h = document.createElement('div');
@@ -2145,9 +2381,13 @@ window.startApp = function () {
       span.textContent = t.label;
       label.appendChild(input);
       label.appendChild(check);
+      label.appendChild(typeIcon(t.key));   // ista ikona kot na kartici
       label.appendChild(span);
       destTypes.appendChild(label);
     });
+
+    var actions = document.createElement('div');
+    actions.className = 'wl-type-actions';
 
     var add = document.createElement('button');
     add.type = 'button';
@@ -2160,7 +2400,19 @@ window.startApp = function () {
       if (name === null) return;
       addCustomType(name.trim());
     });
-    destTypes.appendChild(add);
+    actions.appendChild(add);
+
+    var remove = document.createElement('button');
+    remove.type = 'button';
+    remove.className = 'wl-type-remove';
+    remove.title = 'Odstrani lastno vrsto';
+    remove.setAttribute('aria-label', 'Odstrani lastno vrsto');
+    remove.innerHTML = '<svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">' +
+      '<path d="M4 7h16M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2m-8 0 1 12a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1l1-12" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+    remove.addEventListener('click', removeCustomTypePrompt);
+    actions.appendChild(remove);
+
+    destTypes.appendChild(actions);
   }
 
   function addCustomType(name) {
@@ -2184,6 +2436,32 @@ window.startApp = function () {
     persistCustomTypes(list);
     checked.push(name);
     renderDestTypes(checked);
+  }
+
+  /* Odstranitev lastne vrste (vgrajene niso odstranljive). Obstoječih destinacij
+     ne spremeni — vrsta se le umakne s seznama možnosti. */
+  function removeCustomTypePrompt() {
+    var custom = loadCustomTypes();
+    if (!custom.length) { showToast('Ni lastnih vrst za odstranitev.', 2500); return; }
+    var name = prompt('Katero lastno vrsto naj odstranim?\n(' +
+      custom.map(function (t) { return t.label; }).join(', ') + ')');
+    if (name === null) return;
+    var n = name.trim().toLowerCase();
+    if (!n) return;
+    if (WL_TYPES.some(function (t) { return t.key.toLowerCase() === n || t.label.toLowerCase() === n; })) {
+      showToast('Vgrajene vrste ni mogoče odstraniti.', 2800); return;
+    }
+    var idx = -1;
+    custom.forEach(function (t, i) {
+      if (idx === -1 && (t.key.toLowerCase() === n || t.label.toLowerCase() === n)) idx = i;
+    });
+    if (idx === -1) { showToast('Take lastne vrste ni.', 2500); return; }
+    var removed = custom[idx].label;
+    custom.splice(idx, 1);
+    persistCustomTypes(custom);
+    var checked = checkedTypeKeys().filter(function (k) { return normType(k) !== normType(removed); });
+    renderDestTypes(checked);
+    showToast('Odstranjeno: ' + removed, 2000);
   }
 
   renderDestTypes([]);
@@ -2258,7 +2536,7 @@ window.startApp = function () {
 
     var lat = null, lng = null;
     var pc = parseLatLng(destCoords.value);
-    if (pc) { lat = pc.lat; lng = pc.lng; }
+    if (pc) { lat = round7(pc.lat); lng = round7(pc.lng); }
 
     var list = loadWishlist();
     if (wlEditId !== null) {
@@ -2286,11 +2564,19 @@ window.startApp = function () {
   btnDestCancel.addEventListener('click', closeWishlistForm);
   btnDestSave.addEventListener('click', saveWishlistForm);
 
-  /* Ko uporabnik zapusti polje za koordinate, jih pretvorimo v enotno obliko
-     "46.3190927, 14.7246127" (npr. iz "46,3190927°N 14,7246127°E"). */
+  /* Ko uporabnik zapusti polje za koordinate: (1) jih pretvorimo v enotno obliko
+     "46.3190927, 14.7246127" (npr. iz "46°16′25″N 13°48′44″E"); (2) za Slovenijo
+     samodejno določimo statistično regijo iz koordinat. */
   destCoords.addEventListener('blur', function () {
     var pc = parseLatLng(destCoords.value);
-    if (pc) destCoords.value = pc.lat + ', ' + pc.lng;
+    if (!pc) return;
+    destCoords.value = round7(pc.lat) + ', ' + round7(pc.lng);
+    if (destCountry.value !== 'Slovenija') return;
+    var region = regionFromCoords(pc.lat, pc.lng);
+    if (!region) return;
+    ensureOption(destRegion, region);
+    destRegion.value = region;
+    showToast('Regija: ' + region, 1600);
   });
 
   // ---------------------------------------------------------- izvoz / uvoz seznama
@@ -2357,6 +2643,7 @@ window.startApp = function () {
     renderSavedAreasGrid();
     renderSavedMountainsGrid();
     renderWishlist();
+    renderExploreList();
   }
   /* Ponoven izris tudi po prijavi (auth.js pokliče window.refreshApp, če je
      startApp že tekel — npr. po prevzemu seje iz huba). */

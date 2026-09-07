@@ -313,6 +313,15 @@
             <span>Izvozi seznam</span>
           </button>
           <div class="menu-sep"></div>
+          <label class="menu-toggle">
+            <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+              <path d="M18 8a3 3 0 1 0-2.6-4.5M6 15a3 3 0 1 0 2.6 4.5M18 16a3 3 0 1 0 2.6 4.5M8.7 13.7l6.6 3.6M15.3 6.7l-6.6 3.6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+            </svg>
+            <span>Prikaži točke ostalim</span>
+            <input type="checkbox" id="chkShareLists">
+            <span class="menu-toggle-box" aria-hidden="true"></span>
+          </label>
+          <div class="menu-sep"></div>
           <p class="menu-user-name" id="wlMenuUserName">&nbsp;</p>
           <p class="menu-user-email" id="wlMenuUserEmail">&nbsp;</p>
           <button id="wlSignoutBtn" class="menu-item menu-item-danger" type="button">
@@ -371,10 +380,23 @@
           <button id="wlSortAlpha" class="wl-sort-btn" type="button">A–Ž</button>
         </div>
       </div>
+      <div class="wl-filter-group" id="wlExploreGroup" data-filter="explore">
+        <button class="wl-filter-head" type="button" aria-expanded="true">
+          <span class="wl-filter-label">Razišči ideje drugih</span>
+          <svg class="wl-filter-chevron" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </button>
+        <div id="wlExploreList" class="wl-explore-list"></div>
+      </div>
     </div>
    </aside>
 
     <div class="wl-browse-inner">
+      <div id="wlExploreBanner" class="wl-explore-banner" hidden>
+        <span id="wlExploreBannerText"></span>
+        <button id="wlExploreBack" type="button">Nazaj na moj seznam</button>
+      </div>
       <div id="wishlistList" class="area-list"></div>
       <p id="wishlistEmpty" class="saved-empty">Ni še destinacij. Dodaj prvo.</p>
     </div>
@@ -548,6 +570,7 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.115.0/dist/umd/supabase.js"></script>
 <script src="js/config.js"></script>
 <script src="js/db.js"></script>
+<script src="js/si-regions.js"></script>
 <script src="js/app.js"></script>
 <script src="install-promo.js"></script>
 <script src="js/auth.js"></script>

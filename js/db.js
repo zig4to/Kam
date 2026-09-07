@@ -34,6 +34,43 @@
   var initDone = null;
   var dirty = false;   // je v `state` sprememba, ki še ni potrjeno v oblaku?
 
+  // --- deljenje seznama "Vem kam grem" (tabela kam_profiles, glej 002_sharing.sql)
+  var shareEnabled = false;   // "prikaži točke ostalim"
+  var profileName = "";       // kratko ime (Žiga T.)
+  var sharedTimer = null;
+
+  function shortName(user) {
+    var md = (user && user.user_metadata) || {};
+    var full = String(md.full_name || md.name || md.display_name ||
+      ((md.first_name || md.given_name || "") + " " + (md.last_name || md.family_name || ""))).trim();
+    if (!full && user && user.email) {
+      full = user.email.split("@")[0].replace(/[._-]+/g, " ").trim();
+    }
+    var parts = full.split(/\s+/).filter(Boolean);
+    if (!parts.length) return "Uporabnik";
+    var cap = function (w) { return w.charAt(0).toUpperCase() + w.slice(1); };
+    if (parts.length === 1) return cap(parts[0]);
+    return cap(parts[0]) + " " + parts[1].charAt(0).toUpperCase() + ".";
+  }
+
+  function pushProfile() {
+    if (!uid) return Promise.resolve(false);
+    return sb.from("kam_profiles").upsert({
+      user_id: uid,
+      display_name: profileName,
+      share_enabled: shareEnabled,
+      shared_wishlist: shareEnabled && Array.isArray(state.wishlist) ? state.wishlist : [],
+      updated_at: new Date().toISOString()
+    }, { onConflict: "user_id" }).then(function (res) {
+      return !res.error;
+    }).catch(function () { return false; });
+  }
+  function scheduleSharedPush() {
+    if (!shareEnabled) return;
+    if (sharedTimer) clearTimeout(sharedTimer);
+    sharedTimer = setTimeout(function () { sharedTimer = null; pushProfile(); }, 1200);
+  }
+
   function emptyState() {
     var s = {};
     KEYS.forEach(function (k) { s[k] = []; });
@@ -130,6 +167,14 @@
       uid = session && session.user ? session.user.id : null;
       if (!uid) return; // brez prijave (auth.js sicer tega ne dovoli)
 
+      profileName = shortName(session.user);
+      // Profil (deljenje) — če tabele še ni, tiho preskočimo.
+      sb.from("kam_profiles").select("share_enabled").eq("user_id", uid).maybeSingle()
+        .then(function (res) {
+          if (!res.error && res.data) shareEnabled = !!res.data.share_enabled;
+          return pushProfile();
+        }).catch(function () {});
+
       return sb.from("kam_data").select("data").eq("user_id", uid).maybeSingle()
         .then(function (res) {
           if (res.error) throw res.error;
@@ -176,6 +221,7 @@
     state[key] = Array.isArray(list) ? list : [];
     writeMirror();
     schedulePush();
+    if (key === "wishlist") scheduleSharedPush();
     return true;
   }
   function clearCache() {
@@ -186,7 +232,40 @@
     initDone = null;
     uid = null;
     dirty = false;
+    shareEnabled = false;
+    profileName = "";
+    if (sharedTimer) { clearTimeout(sharedTimer); sharedTimer = null; }
   }
 
-  window.KamData = { init: init, get: get, set: set, clearCache: clearCache };
+  // --- deljenje ---
+  function isShared() { return shareEnabled; }
+  function setShare(on) {
+    shareEnabled = !!on;
+    return pushProfile();
+  }
+  function listShared() {
+    if (!uid) return Promise.resolve([]);
+    return sb.from("kam_profiles").select("user_id, display_name")
+      .eq("share_enabled", true).neq("user_id", uid)
+      .then(function (res) {
+        if (res.error) return [];
+        return (res.data || []).map(function (p) {
+          return { userId: p.user_id, name: p.display_name || "Uporabnik" };
+        }).sort(function (a, b) { return a.name.localeCompare(b.name, "sl"); });
+      }).catch(function () { return []; });
+  }
+  function getShared(userId) {
+    if (!userId) return Promise.resolve([]);
+    return sb.from("kam_profiles").select("shared_wishlist")
+      .eq("user_id", userId).eq("share_enabled", true).maybeSingle()
+      .then(function (res) {
+        if (res.error || !res.data) return [];
+        return Array.isArray(res.data.shared_wishlist) ? res.data.shared_wishlist : [];
+      }).catch(function () { return []; });
+  }
+
+  window.KamData = {
+    init: init, get: get, set: set, clearCache: clearCache,
+    isShared: isShared, setShare: setShare, listShared: listShared, getShared: getShared
+  };
 })();
