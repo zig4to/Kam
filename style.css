@@ -69,13 +69,14 @@ body {
 .btn-compass {
   display: flex;
   align-items: center;
-  gap: 9px;
+  gap: 8px;
+  height: 40px;                 /* enako kot .btn-menu / .btn-home */
   background: rgba(27, 32, 41, 0.8);
   color: var(--accent-blue);
   border: 1px solid var(--accent-blue);
   border-radius: 999px;
-  padding: 10px 20px 10px 14px;
-  font-size: 15px;
+  padding: 0 18px 0 13px;
+  font-size: 14px;
   font-weight: 600;
   cursor: pointer;
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.4);
@@ -83,7 +84,7 @@ body {
 }
 .btn-compass:hover { background: rgba(36, 44, 56, 0.9); }
 .btn-compass:active { transform: scale(0.96); }
-.btn-compass svg { width: 24px; height: 24px; flex-shrink: 0; }
+.btn-compass svg { width: 20px; height: 20px; flex-shrink: 0; }
 
 /* Poravnano desno zgoraj in izvzeto iz sredinjenja, da gumb za kompas ostane
    natanko na sredini vrstice. .menu-wrap je hkrati sidro za spustni meni. */
@@ -113,8 +114,8 @@ body {
    napravah je trenutna velikost že ravno prav za prst. */
 @media (min-width: 640px) and (pointer: fine) {
   .menu-wrap { right: 20px; }
-  .btn-compass { padding: 15px 32px 15px 22px; font-size: 18px; gap: 12px; }
-  .btn-compass svg { width: 30px; height: 30px; }
+  .btn-compass { height: 46px; padding: 0 26px 0 18px; font-size: 15px; gap: 9px; }
+  .btn-compass svg { width: 22px; height: 22px; }
 
   .btn-menu, .btn-home { width: 46px; height: 46px; }
   .btn-menu svg { width: 22px; height: 22px; }
@@ -222,6 +223,36 @@ body {
   box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
   z-index: 1600;
   box-sizing: border-box;
+}
+
+/* Ročaj za zlaganje panela s parametri — samo na telefonu. Poteg navzdol zloži
+   panel (vidi se le ročaj), poteg navzgor (ali tap) ga spet razpre. */
+.radius-handle { display: none; }
+@media (max-width: 639px), (pointer: coarse) {
+  .radius-panel { transition: transform 0.28s ease; }
+  .radius-panel.collapsed { transform: translate(-50%, calc(100% - 46px)); }
+  .radius-handle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 24px;
+    margin: -10px 0 6px;
+    padding: 0;
+    background: none;
+    border: none;
+    cursor: grab;
+    touch-action: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .radius-handle-bar {
+    width: 42px;
+    height: 4px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.28);
+    transition: background 0.15s ease, width 0.15s ease;
+  }
+  .radius-panel.collapsed .radius-handle-bar { width: 52px; background: var(--accent-blue); }
 }
 
 /* Na namizju (miška, dovolj širok zaslon) v spodnji desni kot namesto na
@@ -840,9 +871,33 @@ html.landing-restored .landing-overlay { display: none; }
 .wl-filter-head:hover .wl-filter-chevron { color: var(--text); }
 .wl-filter-group.collapsed .wl-filter-chevron { transform: rotate(-90deg); }
 .wl-filter-group .wl-tabs,
-.wl-filter-group .wl-subtabs { margin-bottom: 8px; }
+.wl-filter-group .wl-subtabs,
+.wl-filter-group .wl-sort-row { margin-bottom: 8px; }
 .wl-filter-group.collapsed .wl-tabs,
-.wl-filter-group.collapsed .wl-subtabs { display: none; }
+.wl-filter-group.collapsed .wl-subtabs,
+.wl-filter-group.collapsed .wl-sort-row { display: none; }
+
+/* Preklop pogleda seznama: po regijah / A–Ž (zložljiva kategorija kot ostale). */
+.wl-sort-row { display: flex; gap: 6px; }
+.wl-sort-btn {
+  flex: 1;
+  padding: 7px 10px;
+  border-radius: 999px;
+  border: 1.5px solid rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.12s ease, border-color 0.12s ease, color 0.12s ease;
+}
+.wl-sort-btn:hover { background: rgba(255, 255, 255, 0.1); }
+.wl-sort-btn.active {
+  background: var(--accent-blue);
+  border-color: var(--accent-blue);
+  color: #08161f;
+}
 
 .wl-tabs, .wl-subtabs {
   display: flex;
@@ -907,10 +962,17 @@ html.landing-restored .landing-overlay { display: none; }
   gap: 10px;
   align-content: start;
 }
-#wishlistList .wl-row { align-items: flex-start; }
+#wishlistList .wl-row { align-items: center; position: relative; }
 #wishlistList .wl-row-main { align-items: center; }
 #wishlistList .area-row-text { flex: 1; min-width: 0; }
-#wishlistList .area-row-name { white-space: normal; font-size: 14px; line-height: 1.3; }
+/* Ime se prelomi pred gumboma, vrstica z značko + koordinatami pa teče čez
+   celo širino kartice (pod gumboma), da se koordinate lahko pomaknejo desno. */
+#wishlistList .area-row-name { white-space: normal; font-size: 14px; line-height: 1.3; padding-right: 52px; }
+#wishlistList .area-row-actions {
+  position: absolute;
+  top: 8px;
+  right: 10px;
+}
 
 /* Regijske skupine na seznamu — display: contents, da kartice ostanejo v mreži. */
 .wl-region-group { display: contents; }
@@ -986,13 +1048,15 @@ html.landing-restored .landing-overlay { display: none; }
 .wl-row.visited .area-row-name { text-decoration: line-through; color: var(--text-dim); }
 .wl-row.visited { opacity: 0.75; }
 
-/* Vrsta destinacije in koordinate strogo v isti vrstici — koordinate takoj za
-   značko z majhnim presledkom (brez potiskanja na desni rob). */
+/* Vrsta destinacije in koordinate v isti vrstici — koordinate takoj za značko;
+   gumba uredi/izbriši sta absolutna (glej #wishlistList spodaj), da ima ta
+   vrstica na voljo celotno širino kartice in se nič ne prekriva. */
 .wl-meta-line {
   display: flex;
   align-items: center;
   gap: 8px;
   margin-top: 5px;
+  min-width: 0;
 }
 .wl-meta-line .wl-badges { min-width: 0; }
 .wl-meta-line .wl-row-coords { flex-shrink: 0; }

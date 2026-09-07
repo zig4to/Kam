@@ -716,6 +716,9 @@ window.startApp = function () {
   function endRadiusStep() {
     radiusStepToken++;
     radiusPanel.hidden = true;
+    radiusPanel.classList.remove('collapsed');
+    radiusPanel.style.transform = '';
+    radiusPanel.style.transition = '';
     if (previewCircle) { map.removeLayer(previewCircle); previewCircle = null; }
     if (startMarker) { map.removeLayer(startMarker); startMarker = null; }
     if (drawAreaToggle.checked) {
@@ -731,6 +734,47 @@ window.startApp = function () {
   }
 
   btnRadiusCancel.addEventListener('click', endRadiusStep);
+
+  /* Telefon: ročaj na vrhu panela s parametri — poteg navzdol ga zloži (ostane
+     le ročaj, zemljevid je bolj dostopen), poteg navzgor ali tap ga razpre. */
+  (function () {
+    var radiusHandle = document.getElementById('radiusHandle');
+    if (!radiusHandle) return;
+    var startY = 0, base = 0, peek = 0, dragging = false, moved = false;
+    function isCollapsed() { return radiusPanel.classList.contains('collapsed'); }
+    function setCollapsed(v) { radiusPanel.classList.toggle('collapsed', v); }
+
+    radiusHandle.addEventListener('touchstart', function (e) {
+      dragging = true;
+      moved = false;
+      startY = e.touches[0].clientY;
+      peek = Math.max(60, radiusPanel.offsetHeight - 46);
+      base = isCollapsed() ? peek : 0;
+      radiusPanel.style.transition = 'none';
+    }, { passive: true });
+
+    radiusHandle.addEventListener('touchmove', function (e) {
+      if (!dragging) return;
+      var dy = e.touches[0].clientY - startY;
+      if (Math.abs(dy) > 6) moved = true;
+      var off = Math.max(0, Math.min(peek, base + dy));
+      radiusPanel.style.transform = 'translate(-50%, ' + off + 'px)';
+    }, { passive: true });
+
+    radiusHandle.addEventListener('touchend', function (e) {
+      if (!dragging) return;
+      dragging = false;
+      var off = base + (e.changedTouches[0].clientY - startY);
+      radiusPanel.style.transition = '';
+      radiusPanel.style.transform = '';
+      if (moved) setCollapsed(off > peek * 0.4);
+    }, { passive: true });
+
+    radiusHandle.addEventListener('click', function () {
+      if (moved) { moved = false; return; }   // to je bil poteg, ne tap
+      setCollapsed(!isCollapsed());
+    });
+  })();
 
   function showResult(point, name) {
     if (resultMarker) map.removeLayer(resultMarker);
@@ -1504,6 +1548,36 @@ window.startApp = function () {
   function isNum(x) { return typeof x === 'number' && isFinite(x); }
   function slCmp(a, b) { return String(a).localeCompare(String(b), 'sl'); }
 
+  /* Razbere koordinate iz več oblik in vrne { lat, lng } ali null. Podpira:
+       "46.3190927, 14.7246127"        (pika = decimalka, vejica = ločilo)
+       "46,3190927°N 14,7246127°E"     (vejica = decimalka, oznake polobl)
+       "46,3190927, 14,7246127"        (vejica = decimalka in ločilo)
+       vrstni red N/E ni pomemben; S in W dasta negativno vrednost. */
+  function parseLatLng(raw) {
+    if (!raw) return null;
+    var s = String(raw).trim().toUpperCase().replace(/°/g, ' ');
+
+    var toks = s.match(/-?\d+(?:[.,]\d+)?\s*[NSEW]/g);
+    if (toks && toks.length === 2) {
+      var lat = null, lng = null;
+      toks.forEach(function (t) {
+        var mm = t.match(/(-?\d+(?:[.,]\d+)?)\s*([NSEW])/);
+        var v = Math.abs(parseFloat(mm[1].replace(',', '.')));
+        if (mm[2] === 'S' || mm[2] === 'W') v = -v;
+        if (mm[2] === 'N' || mm[2] === 'S') lat = v; else lng = v;
+      });
+      return (isFinite(lat) && isFinite(lng)) ? { lat: lat, lng: lng } : null;
+    }
+
+    var nums = s.replace(/[NSEW]/g, ' ').match(/-?\d+(?:[.,]\d+)?/g) || [];
+    if (nums.length === 2) {
+      var a = parseFloat(nums[0].replace(',', '.'));
+      var b = parseFloat(nums[1].replace(',', '.'));
+      if (isFinite(a) && isFinite(b)) return { lat: a, lng: b };
+    }
+    return null;
+  }
+
   var wishlistSection = document.getElementById('wishlistSection');
   var wishlistBackdrop = document.getElementById('wishlistBackdrop');
   var btnWishlistClose = document.getElementById('btnWishlistClose');
@@ -1518,6 +1592,9 @@ window.startApp = function () {
   var wlFilters = document.getElementById('wlFilters');
   var wishlistTypeTabs = document.getElementById('wishlistTypeTabs');
   var wlTypeGroup = document.getElementById('wlTypeGroup');
+  var wlRegionGroup = document.getElementById('wlRegionGroup');
+  var wlSortRegionBtn = document.getElementById('wlSortRegion');
+  var wlSortAlphaBtn = document.getElementById('wlSortAlpha');
   var btnWlFilterToggle = document.getElementById('btnWlFilterToggle');
   var btnAddDest = document.getElementById('btnAddDest');
   var btnImportWishlist = document.getElementById('btnImportWishlist');
@@ -1535,6 +1612,45 @@ window.startApp = function () {
   var wlActiveRegion = WL_ALL;
   var wlActiveType = WL_ALL;
   var wlEditId = null;
+
+  /* Izbrani filtri (država / regija / vrsta) se ohranijo po osvežitvi. Če
+     shranjena vrednost ne obstaja več, jo renderWishlist samodejno popravi. */
+  var WL_FILTERS_KEY = 'kam:wlActiveFilters';
+  function saveActiveFilters() {
+    try {
+      localStorage.setItem(WL_FILTERS_KEY, JSON.stringify({
+        country: wlActiveCountry, region: wlActiveRegion, type: wlActiveType
+      }));
+    } catch (e) {}
+  }
+  try {
+    var _wlf = JSON.parse(localStorage.getItem(WL_FILTERS_KEY) || '{}');
+    if (_wlf && typeof _wlf === 'object') {
+      if (typeof _wlf.country === 'string') wlActiveCountry = _wlf.country;
+      if (typeof _wlf.region === 'string') wlActiveRegion = _wlf.region;
+      if (typeof _wlf.type === 'string') wlActiveType = _wlf.type;
+    }
+  } catch (e) {}
+
+  /* Pogled seznama: 'region' (združeno po regijah, kot doslej) ali 'alpha'
+     (cel seznam države po abecedi, brez regij). Ohrani se po osvežitvi. */
+  var WL_SORT_KEY = 'kam:wlSort';
+  var wlSortMode = 'region';
+  try { if (localStorage.getItem(WL_SORT_KEY) === 'alpha') wlSortMode = 'alpha'; } catch (e) {}
+  function applySortButtons() {
+    wlSortRegionBtn.classList.toggle('active', wlSortMode === 'region');
+    wlSortAlphaBtn.classList.toggle('active', wlSortMode === 'alpha');
+  }
+  function setSortMode(mode) {
+    if (mode === wlSortMode) return;
+    wlSortMode = mode;
+    try { localStorage.setItem(WL_SORT_KEY, mode); } catch (e) {}
+    applySortButtons();
+    renderWishlist();
+  }
+  applySortButtons();
+  wlSortRegionBtn.addEventListener('click', function () { setSortMode('region'); });
+  wlSortAlphaBtn.addEventListener('click', function () { setSortMode('alpha'); });
 
   // Predal zdrsne z desne čez zemljevid/naslovnico — isti vzorec kot drugi seznami.
   // Zapomni si, da je odprt, da po osvežitvi strani ostanemo tukaj (glej dno startApp).
@@ -1850,30 +1966,40 @@ window.startApp = function () {
   function renderWishlist() {
     var list = loadWishlist();
     var countries = wlCountries(list);
-    if (countries.indexOf(wlActiveCountry) === -1) wlActiveCountry = countries[0];
+    if (wlActiveCountry !== WL_ALL && countries.indexOf(wlActiveCountry) === -1) wlActiveCountry = countries[0];
+    var allCountries = wlActiveCountry === WL_ALL;
     var regions = wlRegions(list, wlActiveCountry);
     if (wlActiveRegion !== WL_ALL && regions.indexOf(wlActiveRegion) === -1) wlActiveRegion = WL_ALL;
 
     var hasAny = list.length > 0;
+    var alpha = wlSortMode === 'alpha';   // cel seznam po abecedi, brez regij
     if (wlFilters) wlFilters.hidden = !hasAny;
     if (btnWlFilterToggle) btnWlFilterToggle.hidden = !hasAny;
+    // Regija nima smisla čez vse države ali v pogledu A–Ž.
+    if (wlRegionGroup) wlRegionGroup.hidden = !hasAny || alpha || allCountries;
     wishlistEmpty.hidden = hasAny;
     wishlistTabs.hidden = !hasAny;
     wishlistSubtabs.hidden = !hasAny;
 
-    // -- države
+    // -- države (+ "Vse")
+    var countryItems = [{ value: WL_ALL, label: 'Vse' }];
+    countries.forEach(function (c) { countryItems.push({ value: c, label: c }); });
     var pickCountry = function (c) {
-      wlActiveCountry = c; wlActiveRegion = WL_ALL; wlActiveType = WL_ALL; renderWishlist();
+      wlActiveCountry = c; wlActiveRegion = WL_ALL; wlActiveType = WL_ALL;
+      saveActiveFilters(); renderWishlist();
     };
     pickCountry.count = function (c) {
-      return list.filter(function (r) { return r.country === c; }).length;
+      return list.filter(function (r) { return c === WL_ALL || r.country === c; }).length;
     };
-    wlPillRow(wishlistTabs, countries, wlActiveCountry, pickCountry);
+    wlPillRow(wishlistTabs, countryItems, wlActiveCountry, pickCountry);
 
     // -- regije (+ "Vse regije")
     var regionItems = [{ value: WL_ALL, label: 'Vse regije' }];
     regions.forEach(function (rg) { regionItems.push({ value: rg, label: rg }); });
-    var pickRegion = function (rg) { wlActiveRegion = rg; wlActiveType = WL_ALL; renderWishlist(); };
+    var pickRegion = function (rg) {
+      wlActiveRegion = rg; wlActiveType = WL_ALL;
+      saveActiveFilters(); renderWishlist();
+    };
     pickRegion.count = function (rg) {
       return list.filter(function (r) {
         return r.country === wlActiveCountry && (rg === WL_ALL || r.region === rg);
@@ -1881,9 +2007,11 @@ window.startApp = function () {
     };
     wlPillRow(wishlistSubtabs, regionItems, wlActiveRegion, pickRegion);
 
-    // vrstice v obsegu država + regija (pred filtrom vrste)
+    // vrstice v obsegu države (+ regija, razen v pogledu A–Ž / "Vse" države),
+    // pred filtrom vrste
     var scoped = list.filter(function (r) {
-      return r.country === wlActiveCountry && (wlActiveRegion === WL_ALL || r.region === wlActiveRegion);
+      return (allCountries || r.country === wlActiveCountry) &&
+        (alpha || allCountries || wlActiveRegion === WL_ALL || r.region === wlActiveRegion);
     });
 
     // -- vrste destinacij (+ "Vse"), le tiste, ki se pojavijo v trenutnem obsegu
@@ -1901,7 +2029,7 @@ window.startApp = function () {
       typeKeys.sort(function (a, b) { return slCmp(labelFor(a), labelFor(b)); });
       var typeItems = [{ value: WL_ALL, label: 'Vse' }];
       typeKeys.forEach(function (k) { typeItems.push({ value: k, label: labelFor(k) }); });
-      var pickType = function (t) { wlActiveType = t; renderWishlist(); };
+      var pickType = function (t) { wlActiveType = t; saveActiveFilters(); renderWishlist(); };
       pickType.count = function (t) {
         return scoped.filter(function (r) {
           return t === WL_ALL || (r.types && r.types.indexOf(t) !== -1);
@@ -1927,16 +2055,22 @@ window.startApp = function () {
 
     function addRow(rec) { wishlistList.appendChild(buildWlRow(rec)); }
 
-    if (wlActiveRegion === WL_ALL) {
+    if (alpha) {
+      // Cel seznam po abecedi — brez skupin in razdelka "Obiskano".
+      rows.slice()
+        .sort(function (a, b) { return slCmp(a.name, b.name); })
+        .forEach(addRow);
+    } else if (wlActiveRegion === WL_ALL) {
+      // Skupine: pri "Vse" državah po državah, sicer po regijah.
       var collapsedRegions = loadRegionCollapsed();
       var byRegion = {};
       rows.forEach(function (r) {
-        var k = r.region || 'Drugo';
+        var k = (allCountries ? r.country : r.region) || 'Drugo';
         (byRegion[k] = byRegion[k] || []).push(r);
       });
       Object.keys(byRegion).sort(slCmp).forEach(function (rg) {
         var recs = byRegion[rg];
-        var stateKey = wlActiveCountry + '|' + rg;
+        var stateKey = (allCountries ? '__c__' : wlActiveCountry) + '|' + rg;
         var isCollapsed = !!collapsedRegions[stateKey];
 
         // Skupina = display: contents, da kartice ostanejo v mreži seznama.
@@ -2123,11 +2257,8 @@ window.startApp = function () {
     var region = destRegion.value || (COUNTRY_REGIONS[country] && COUNTRY_REGIONS[country][0]) || 'Drugo';
 
     var lat = null, lng = null;
-    var parts = destCoords.value.split(',');
-    if (parts.length === 2) {
-      var a = parseFloat(parts[0]), b = parseFloat(parts[1]);
-      if (isFinite(a) && isFinite(b)) { lat = a; lng = b; }
-    }
+    var pc = parseLatLng(destCoords.value);
+    if (pc) { lat = pc.lat; lng = pc.lng; }
 
     var list = loadWishlist();
     if (wlEditId !== null) {
@@ -2146,6 +2277,7 @@ window.startApp = function () {
     wlActiveCountry = country;
     wlActiveRegion = region;
     wlActiveType = WL_ALL;
+    saveActiveFilters();
     showToast(ok ? 'Destinacija shranjena' : 'Napaka pri shranjevanju', 2000);
     closeWishlistForm();
   }
@@ -2153,6 +2285,13 @@ window.startApp = function () {
   btnAddDest.addEventListener('click', function () { openWishlistForm(null); });
   btnDestCancel.addEventListener('click', closeWishlistForm);
   btnDestSave.addEventListener('click', saveWishlistForm);
+
+  /* Ko uporabnik zapusti polje za koordinate, jih pretvorimo v enotno obliko
+     "46.3190927, 14.7246127" (npr. iz "46,3190927°N 14,7246127°E"). */
+  destCoords.addEventListener('blur', function () {
+    var pc = parseLatLng(destCoords.value);
+    if (pc) destCoords.value = pc.lat + ', ' + pc.lng;
+  });
 
   // ---------------------------------------------------------- izvoz / uvoz seznama
   function exportWishlist() {

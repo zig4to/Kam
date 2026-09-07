@@ -341,7 +341,7 @@
         </button>
         <div id="wishlistTabs" class="wl-tabs"></div>
       </div>
-      <div class="wl-filter-group" data-filter="region">
+      <div class="wl-filter-group" id="wlRegionGroup" data-filter="region">
         <button class="wl-filter-head" type="button" aria-expanded="true">
           <span class="wl-filter-label">Regija</span>
           <svg class="wl-filter-chevron" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
@@ -358,6 +358,18 @@
           </svg>
         </button>
         <div id="wishlistTypeTabs" class="wl-subtabs"></div>
+      </div>
+      <div class="wl-filter-group" data-filter="sort">
+        <button class="wl-filter-head" type="button" aria-expanded="true">
+          <span class="wl-filter-label">Pogled</span>
+          <svg class="wl-filter-chevron" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </button>
+        <div class="wl-sort-row">
+          <button id="wlSortRegion" class="wl-sort-btn active" type="button">Po regijah</button>
+          <button id="wlSortAlpha" class="wl-sort-btn" type="button">A–Ž</button>
+        </div>
       </div>
     </div>
    </aside>
@@ -418,6 +430,9 @@
 </div>
 
 <div id="radiusPanel" class="radius-panel" hidden>
+  <button id="radiusHandle" class="radius-handle" type="button" aria-label="Zloži ali razširi parametre">
+    <span class="radius-handle-bar"></span>
+  </button>
   <div id="radiusControls">
     <div class="row">
       <strong>Radij okoli izhodišča</strong>
