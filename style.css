@@ -1254,10 +1254,17 @@ html.landing-restored .landing-overlay { display: none; }
 }
 .wl-form .area-name-input { display: block; }
 .wl-form .ele-filter-label { margin-top: 12px; }
-.wl-types { display: flex; flex-direction: column; gap: 8px; margin: 8px 0 4px; }
+/* Vrste destinacije: mobilno po 2 v vrsto, na namizju po 4 (glej spodaj). */
+.wl-types {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin: 8px 0 4px;
+}
+.wl-types .pick-mode-row { min-width: 0; }
 .wl-types .pick-mode-row svg { width: 16px; height: 16px; flex-shrink: 0; color: var(--accent-blue); }
 /* Vrstica pod vrstami: "Nova vrsta" (3/4) + odstrani lastno vrsto (1/4). */
-.wl-type-actions { display: flex; gap: 8px; }
+.wl-type-actions { display: flex; gap: 8px; grid-column: 1 / -1; }
 .wl-type-add, .wl-type-remove {
   display: flex;
   align-items: center;
@@ -1281,13 +1288,7 @@ html.landing-restored .landing-overlay { display: none; }
 
 /* Namizje: vrste destinacije po 4 v vrsto, nato naprej po vrsticah. */
 @media (min-width: 900px) {
-  .wl-types {
-    display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: 8px;
-  }
-  .wl-types .pick-mode-row { min-width: 0; }
-  .wl-type-actions { grid-column: 1 / -1; }
+  .wl-types { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 }
 
 /* --- namizje: dvodelni pogled — levo filtrirni stolpec, desno seznam kartic.

@@ -2336,6 +2336,9 @@ window.startApp = function () {
 
     var countries = wlCountries(list);
     if (wlActiveCountry !== WL_ALL && countries.indexOf(wlActiveCountry) === -1) wlActiveCountry = countries[0];
+    // Na mobilnem pri državi ni gumba "Vse" — če je bil izbran, preskoči na prvo državo.
+    var wlMobile = !!(window.matchMedia && window.matchMedia('(max-width: 899px)').matches);
+    if (wlMobile && wlActiveCountry === WL_ALL && countries.length) wlActiveCountry = countries[0];
     var allCountries = wlActiveCountry === WL_ALL;
     var regions = wlRegions(list, wlActiveCountry);
     if (wlActiveRegion !== WL_ALL && regions.indexOf(wlActiveRegion) === -1) wlActiveRegion = WL_ALL;
@@ -2358,8 +2361,8 @@ window.startApp = function () {
     wishlistTabs.hidden = !hasAny;
     wishlistSubtabs.hidden = !hasAny;
 
-    // -- države (+ "Vse")
-    var countryItems = [{ value: WL_ALL, label: 'Vse' }];
+    // -- države (+ "Vse", a ne na mobilnem)
+    var countryItems = wlMobile ? [] : [{ value: WL_ALL, label: 'Vse' }];
     countries.forEach(function (c) { countryItems.push({ value: c, label: c }); });
     var pickCountry = function (c) {
       wlActiveCountry = c; wlActiveRegion = WL_ALL; wlActiveType = WL_ALL;
