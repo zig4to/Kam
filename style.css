@@ -1291,13 +1291,13 @@ html.landing-restored .landing-overlay { display: none; }
 .wl-row.visited .area-row-name { text-decoration: line-through; color: var(--text-dim); }
 .wl-row.visited { opacity: 0.75; }
 
-/* Vrsta destinacije in koordinate v isti vrstici — koordinate takoj za značko;
-   gumba uredi/izbriši sta absolutna (glej #wishlistList spodaj), da ima ta
-   vrstica na voljo celotno širino kartice in se nič ne prekriva. */
+/* Značke vrste in koordinate: značke v svoji vrsti, koordinate v vrsti spodaj
+   (levo poravnane). Gumba uredi/izbriši sta absolutna (glej #wishlistList). */
 .wl-meta-line {
   display: flex;
-  align-items: center;
-  gap: 8px;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
   margin-top: 5px;
   min-width: 0;
 }
@@ -1460,8 +1460,6 @@ html.landing-restored .landing-overlay { display: none; }
     padding: 20px 24px calc(36px + env(safe-area-inset-bottom));
   }
   #wishlistList { grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 12px; }
-  /* ožja kartica (slika desno) — koordinate v svojo vrsto pod značke */
-  #wishlistList .wl-meta-line { flex-direction: column; align-items: flex-start; gap: 4px; }
   #wishlistList .wl-row.has-img { height: 104px; }
 }
 
