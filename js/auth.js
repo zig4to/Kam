@@ -68,6 +68,10 @@
   var recovering = location.hash.indexOf("type=recovery") !== -1;
   handleHashError();
 
+  function stopSsoLoader() {
+    document.documentElement.classList.remove("sso-pending");
+  }
+
   function consumeSsoHash() {
     var h = location.hash || "";
     if (h.indexOf("sb_at=") === -1 || h.indexOf("sb_rt=") === -1) {
@@ -80,11 +84,16 @@
     params.delete("sb_rt");
     var rest = params.toString();
     history.replaceState(null, "", location.pathname + location.search + (rest ? "#" + rest : ""));
-    if (!at || !rt) return Promise.resolve();
+    if (!at || !rt) { stopSsoLoader(); return Promise.resolve(); }
     ssoAdopting = true;
+    // Nalagalnik je že viden (pre-paint skript v <head>). Varovalo, če se
+    // izmenjava nikoli ne zaključi (Supabase nedosegljiv).
+    document.documentElement.classList.add("sso-pending");
+    var safety = setTimeout(stopSsoLoader, 10000);
     return sb.auth.setSession({ access_token: at, refresh_token: rt })
       .then(function () { freshLogin = true; })
-      .catch(function () {});
+      .catch(function () {})
+      .then(function () { clearTimeout(safety); stopSsoLoader(); });
   }
 
   function handleHashError() {

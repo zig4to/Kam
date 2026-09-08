@@ -1561,3 +1561,38 @@ html.landing-restored .landing-overlay { display: none; }
 .menu-item-danger { color: var(--danger); }
 .menu-item-danger svg { color: var(--danger); }
 .menu-item-danger:hover { background: rgba(239, 68, 68, 0.12); }
+
+/* ============ Nalagalnik ob prijavi iz huba (SSO) ============ */
+/* Privzeto skrit. Med izmenjavo SSO žetonov ga pokaže razred `sso-pending`
+   na <html>, ki ga postavi pre-paint skript v index.html še pred izrisom;
+   consumeSsoHash() v js/auth.js ga odstrani, ko je prijava končana. */
+#ssoLoader { display: none; }
+html.sso-pending #ssoLoader {
+  position: fixed;
+  inset: 0;
+  z-index: 4200;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  padding: 24px;
+  background: var(--bg-dark);
+  box-sizing: border-box;
+  text-align: center;
+}
+html.sso-pending #authScreen,
+html.sso-pending #recoveryScreen { display: none !important; }
+.sso-spinner {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  border: 3px solid rgba(255, 255, 255, 0.15);
+  border-top-color: var(--accent-blue);
+  animation: sso-spin .8s linear infinite;
+}
+.sso-loader-text { margin: 0; font-size: 14px; color: var(--text-dim); }
+@keyframes sso-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) {
+  .sso-spinner { animation-duration: 1.6s; }
+}

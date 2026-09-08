@@ -26,9 +26,24 @@
       document.documentElement.classList.add('landing-restored');
     }
   } catch (e) {}
+
+  /* Prijava iz huba (TomStudios): če naslov nosi #sb_at&sb_rt, pokaži
+     nalagalnik namesto prijavnega obrazca, dokler se prijava ne izvede.
+     Teče sinhrono, še pred izrisom telesa (brez utripa obrazca). */
+  try {
+    var _h = (location.hash || '').replace(/^#/, '');
+    if (_h.indexOf('sb_at=') > -1 && _h.indexOf('sb_rt=') > -1) {
+      document.documentElement.classList.add('sso-pending');
+    }
+  } catch (e) {}
 </script>
 </head>
 <body>
+<div id="ssoLoader" role="status" aria-live="polite">
+  <span class="sso-spinner" aria-hidden="true"></span>
+  <p class="sso-loader-text">Prijavljanje v aplikacijo …</p>
+</div>
+
 <section class="auth-screen" id="authScreen" hidden>
   <div class="auth-card">
     <div class="auth-icon" aria-hidden="true">
