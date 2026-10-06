@@ -1,0 +1,10 @@
+{
+  "name": "kam",
+  "private": true,
+  "config": {
+    "port": 8084
+  },
+  "scripts": {
+    "start": "node serve.js"
+  }
+}
