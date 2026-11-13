@@ -1,6 +1,6 @@
 /* Kam — prijava prek Supabase Auth (e-pošta + geslo) + ponastavitev gesla.
    Aplikacija (window.startApp iz js/app.js) se zažene šele po uspešni prijavi.
-   Če je uporabnik že prijavljen v hub TomStudios (deljena seja ali žeton
+   Če je uporabnik že prijavljen v hub Bitneverse (deljena seja ali žeton
    #sb_at/#sb_rt v povezavi), se prijava zgodi samodejno in ta zaslon se
    preskoči. */
 (function () {

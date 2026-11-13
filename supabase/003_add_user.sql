@@ -1,5 +1,5 @@
 -- Kam — ročno ustvari uporabniški račun (potrjena e-pošta, brez potrditvenega
--- maila). Zaženi v Supabase SQL Editor projekta TomStudios.
+-- maila). Zaženi v Supabase SQL Editor projekta ProjektiBaze.
 --
 -- Najprej v spodnji vrstici zamenjaj 'ZAMENJAJ_GESLO' z izbranim geslom
 -- (vsaj 6 znakov). Uporabnik se nato lahko takoj prijavi s to e-pošto in geslom.

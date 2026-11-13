@@ -1,6 +1,6 @@
 -- Kam — ena vrstica na uporabnika; cela vsebina aplikacije (shranjene točke,
 -- območja, gorovja, seznam "Vem kam grem") je en jsonb blob v stolpcu `data`.
--- Zaženi v Supabase SQL Editor projekta TomStudios (abjnxhfxjolwwxlckkje).
+-- Zaženi v Supabase SQL Editor projekta ProjektiBaze (abjnxhfxjolwwxlckkje).
 
 create table if not exists public.kam_data (
   user_id uuid primary key default auth.uid()

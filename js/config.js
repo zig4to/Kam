@@ -1,4 +1,4 @@
-/* Supabase povezava — deljeni projekt TomStudios (isti kot hub in ostale
+/* Supabase povezava — deljeni projekt ProjektiBaze (isti kot hub in ostale
    aplikacije). anon ključ je javen po zasnovi; dostop varuje Row Level
    Security (glej supabase/001_kam_data.sql). */
 window.SUPABASE_CONFIG = {

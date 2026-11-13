@@ -2,7 +2,7 @@
 -- Vsak uporabnik ima profil z imenom, stikalom "prikaži točke ostalim" in
 -- kopijo svojega seznama (shared_wishlist). Ko je share_enabled = true, lahko
 -- ta profil (in samo seznam, ne ostalih podatkov) bere vsak prijavljen
--- uporabnik. Zaženi v Supabase SQL Editor projekta TomStudios.
+-- uporabnik. Zaženi v Supabase SQL Editor projekta ProjektiBaze.
 
 create table if not exists public.kam_profiles (
   user_id uuid primary key default auth.uid()
